@@ -12,11 +12,21 @@
     "cordis.patch.yml",
     "lib",
     "assets",
+    "examples",
+    "scripts",
     "README.md",
     "README.en.md",
     "LICENSE",
     "LICENSE-APACHE"
   ],
+  "scripts": {
+    "validate": "node scripts/validate.cjs",
+    "test:icon": "node scripts/test-icon.cjs",
+    "test": "node scripts/validate.cjs && node scripts/test-icon.cjs"
+  },
+  "devDependencies": {
+    "js-yaml": "^4.3.2"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"

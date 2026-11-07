@@ -6,7 +6,7 @@
 
 The four built-in modes (standard / ptc / minimal / cordis) answer "which tools may I call". None of them answers the more common question: **when are you allowed to conclude anything?**
 
-Liangsheng Mode writes that standard into the persona and plan-mode instead of leaving it to per-conversation negotiation. It does not make you faster 鈥?it makes you **unable to bluff**.
+Liangsheng Mode writes that standard into the persona and plan-mode instead of leaving it to per-conversation negotiation. It does not make you faster — it makes you **unable to bluff**.
 
 ![Mode icon](assets/screenshot.jpg)
 
@@ -16,14 +16,14 @@ Eight hard constraints, each aimed at one recurring failure:
 
 | # | Capability | Failure it blocks |
 |---|---|---|
-| 1 | **Four opening questions** 鈥?what would an expert in this line do that wasn't asked, what primary material would they start from, what concrete method would they use, what external evidence decides correctness | Coding first, discovering the direction was wrong later |
-| 2 | **Know when to stop** 鈥?write the completion condition (a command or an assertion) before starting; stop and report the blocker after two failures on the same path | Endless retries, pretending to be done |
-| 3 | **Three-way sourcing** 鈥?tag every fact `[file]` / `[search]` / `[memory]`; `[memory]` never enters a conclusion | Treating impressions as evidence |
-| 4 | **Compute, don't estimate** 鈥?math, dates, boundaries and set operations are verified by running code | Numbers invented by mental arithmetic |
-| 5 | **Allowed to not know** 鈥?mark `[unknown]` and state what is missing | Wrapping uncertainty in "maybe / probably" |
-| 6 | **Decompose reasoning** 鈥?split complex inference into independently decidable propositions, judge each, then assemble | A long, plausible-looking chain with nothing testable in it |
-| 7 | **Cross-validation** 鈥?send uncertain claims to 2鈥? subagents; before delivering an important conclusion, send a reviewer subagent that never saw this context | Self-confirmation, echo chambers |
-| 8 | **Spend compute by difficulty** 鈥?mechanical work goes to free-model subagents, judgement stays with you; effort follows difficulty | Paying top-tier rates to copy a file |
+| 1 | **Four opening questions** — what would an expert in this line do that wasn't asked, what primary material would they start from, what concrete method would they use, what external evidence decides correctness | Coding first, discovering the direction was wrong later |
+| 2 | **Know when to stop** — write the completion condition (a command or an assertion) before starting; stop and report the blocker after two failures on the same path | Endless retries, pretending to be done |
+| 3 | **Three-way sourcing** — tag every fact `[file]` / `[search]` / `[memory]`; `[memory]` never enters a conclusion | Treating impressions as evidence |
+| 4 | **Compute, don't estimate** — math, dates, boundaries and set operations are verified by running code | Numbers invented by mental arithmetic |
+| 5 | **Allowed to not know** — mark `[unknown]` and state what is missing | Wrapping uncertainty in "maybe / probably" |
+| 6 | **Decompose reasoning** — split complex inference into independently decidable propositions, judge each, then assemble | A long, plausible-looking chain with nothing testable in it |
+| 7 | **Cross-validation** — send uncertain claims to 2— subagents; before delivering an important conclusion, send a reviewer subagent that never saw this context | Self-confirmation, echo chambers |
+| 8 | **Spend compute by difficulty** — mechanical work goes to free-model subagents, judgement stays with you; effort follows difficulty | Paying top-tier rates to copy a file |
 
 ## Architecture
 
@@ -54,7 +54,7 @@ Three things worth noticing:
 
 1. **One package, two halves**: `cordis.patch.yml` declares the preset and the icon host row; `lib/client.js` runs in the browser and never touches the host.
 2. **Switching subagent models needs one more thing**: the preset only turns on `modelSelection`; the authorization comes from `subagent-model-selection-settings` in the profile layer (below).
-3. **The icon is a client patch, not configuration**: DSH presets have no `icon` field 鈥?the glyph is a hard-coded svg, so the client half locates it by label text and masks it.
+3. **The icon is a client patch, not configuration**: DSH presets have no `icon` field — the glyph is a hard-coded svg, so the client half locates it by label text and masks it.
 
 ## Difference from PTC
 
@@ -76,11 +76,32 @@ cp -r dsh-preset-deep ~/.dsh/profiles/<profile>/node_modules/
 # 3. restart the harness
 ```
 
+**From the release tarball** (if you would rather not clone)
+
+```bash
+tar -xzf dsh-preset-deep-0.1.0.tgz -C ~/.dsh/profiles/<profile>/node_modules/
+mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node_modules/dsh-preset-deep
+# then add "dsh-preset-deep" to dsh.profile.bundles and restart
+```
+
 **npm (not published yet)**
 
 > This package is not on npm yet, so `dsh plugin add dsh-preset-deep` will fail. This section takes effect once it is published.
 
 > Remove any hand-written `preset-deep` block from the profile's `cordis.patch.yml` first, or the two collide.
+
+## Adapt the persona to your machine
+
+The "delegate mechanical work" rule in the persona is **deliberately neutral**: it names no provider and no model, and only says "call `list_subagent_models` first, then pick by available → cheapest → good enough". That way someone else installing this is never told to call a route that does not exist on their machine.
+
+Want it tighter? Edit that one line of the persona in `cordis.patch.yml` and pin your preferred model. Then run `node scripts/validate.cjs` — it fails if the persona starts hard-coding someone else's provider.
+
+## Examples
+
+| File | What it is |
+|---|---|
+| [`examples/allow-list.patch.yml`](examples/allow-list.patch.yml) | Fill-in template for the subagent allow-list, paste into the profile's `cordis.patch.yml` |
+| [`examples/acceptance.md`](examples/acceptance.md) | Five-minute acceptance run: three test prompts, the pass line, four failure signatures |
 
 ## Running subagents on other models
 
@@ -90,7 +111,7 @@ The preset's `subagent` row enables `modelSelection` and `modelDiscovery`, so a 
 
 > Without a session-level allow-list, a subagent may only use the parent session's own route.
 
-That is the real reason the other modes cannot fan out to other models 鈥?the official presets also set `modelSelection: true`, but never ship an allow-list. Append to the profile's `cordis.patch.yml`:
+That is the real reason the other modes cannot fan out to other models — the official presets also set `modelSelection: true`, but never ship an allow-list. Append to the profile's `cordis.patch.yml`:
 
 ```yaml
 - id: subagent-model-selection-settings
@@ -106,13 +127,24 @@ Without it, naming another route fails with `child LLM route "<p>/<m>" is not al
 
 ## Icon
 
-- Located by **label text** (`LABEL` at the top of `lib/client.js`), not by class name 鈥?DSH's class names are build hashes and change on upgrade.
+- Located by **label text** (`LABEL` at the top of `lib/client.js`), not by class name — DSH's class names are build hashes and change on upgrade.
+- The primary match is "the container's trimmed text equals `LABEL`"; if DSH ever swaps the icon implementation, `aria-label` / `title` are the fallback.
+- Debug with `window.__LS_ICON_STATUS__` in the console: `{plugin, label, size, tagged, at}`. `tagged: 0` means nothing matched.
 - The mask paints with `currentColor`, so it follows light and dark themes.
 - Replace the image by swapping `assets/icon.png` and re-encoding it into `lib/client.js`; resize with `ICON_SIZE`.
 
+## Development
+
+```bash
+npm install          # js-yaml only — the validator needs it to parse the !!js tag
+npm test             # 39 structural assertions + 8 icon assertions
+```
+
+`scripts/validate.cjs` catches the regressions that matter: the preset rows or their order changed, a promise disappeared from the persona, someone hard-coded a foreign provider, `modelSelection` got turned off, `LABEL` drifted from `config.name`, or `package.json` grew an `engines.dsh`. CI: copy `ci/validate.yml` to `.github/workflows/validate.yml` and the same two commands run on every push and PR. It lives in `ci/` here because this repo's push token has no `workflow` scope (GitHub refuses workflow files over the API).
+
 ## Known limitations
 
-- **Renaming requires syncing**: `LABEL` must equal the preset's `config.name`.
+- **Renaming means syncing three places**: `config.name` in `cordis.patch.yml`, `LABEL` at the top of `lib/client.js`, and the screenshot caption in the README. If the first two disagree the icon silently does not appear (`validate.cjs` catches it).
 - **The icon overflows**: a 34px icon inside a 22px-tall label, kept visible by `[data-ls-icon]{overflow:visible}`; drop `ICON_SIZE` to 28px if it collides.
 - **With billion-context installed**, add an ordering fence after the preset row:
   ```yaml
@@ -123,7 +155,7 @@ Without it, naming another route fails with `child LLM route "<p>/<m>" is not al
 
 ## Version compatibility
 
-**No version gate 鈥?deliberately.**
+**No version gate — deliberately.**
 
 `package.json` declares neither `engines.dsh` nor `@deepseek-ai/dsh*` `peerDependencies`. DSH decides compatibility in this order: if `engines.dsh` exists it decides alone, otherwise every `dsh` peer is checked; with neither present there is nothing to evaluate, so the bundle is **never judged incompatible and never skipped wholesale**. That is the widest installable range.
 
@@ -133,13 +165,13 @@ That is the first version whose `@deepseek-ai/dsh-web-app` `ptc` preset ships `t
 
 | Version | Result |
 |---|---|
-| `0.2.2-rc.1` (tested on desktop) | 鉁?Everything passes: mount, icon, subagent routing |
-| `0.2.2-alpha.2` 鈥?`0.2.2-rc.1` | 鉁?Expected to work (rows and executor present) |
-| `鈮?0.2.1` | 鈿狅笍 The bundle still loads, but `tool-executor-ptc` cannot be resolved and the mode card may show as broken |
+| `0.2.2-rc.1` (tested on desktop) | ✅ Everything passes: mount, icon, subagent routing |
+| `0.2.2-alpha.2` — `0.2.2-rc.1` | ✅ Expected to work (rows and executor present) |
+| `≤ 0.2.1` | ⚠️ The bundle still loads, but `tool-executor-ptc` cannot be resolved and the mode card may show as broken |
 
 This repo's `cordis.patch.yml` is derived from the official `0.2.2-rc.1` `presets/ptc.patch.yml`: two delegation rows removed, persona and plan-mode replaced.
 
-To force an install on another version, grant an **exact-version** exemption in the profile's `compatibility.json` 鈥?an unmet gate skips the whole bundle rather than degrading it.
+To force an install on another version, grant an **exact-version** exemption in the profile's `compatibility.json` — an unmet gate skips the whole bundle rather than degrading it.
 
 ## License
 

@@ -76,11 +76,32 @@ cp -r dsh-preset-deep ~/.dsh/profiles/<profile>/node_modules/
 # 3. 重启 Harness
 ```
 
+**从 release 的 tarball 安装**（不想 clone 的话）
+
+```bash
+tar -xzf dsh-preset-deep-0.1.0.tgz -C ~/.dsh/profiles/<profile>/node_modules/
+mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node_modules/dsh-preset-deep
+# 同样把 "dsh-preset-deep" 加进 dsh.profile.bundles，然后重启
+```
+
 **npm（尚未发布）**
 
 > 这个包还没发到 npm，`dsh plugin add dsh-preset-deep` 现在会失败。发布后本条即生效。
 
 > 装之前先删掉 profile 的 `cordis.patch.yml` 里手写的那段 `preset-deep`，否则同名冲突。
+
+## 按你的环境改写 persona
+
+persona 里那条「派子 agent」的规则**故意写成了中性的**：不点名任何 provider 或模型，只说「先调 `list_subagent_models` 看清这台机器允许哪些路由，再按可用 → 便宜 → 够用挑一条」。这样别人装上不会教模型去调不存在的路由。
+
+想收紧的话，改 `cordis.patch.yml` 里 persona 的那一行即可，例如把首选模型写死成你自己常用的那条。改完跑一次 `node scripts/validate.cjs`——它会拦住"persona 里写死了别人的 provider"这类回退。
+
+## 示例
+
+| 文件 | 干什么 |
+|---|---|
+| [`examples/allow-list.patch.yml`](examples/allow-list.patch.yml) | 子代理白名单的填空模板，复制进 profile 的 `cordis.patch.yml` |
+| [`examples/acceptance.md`](examples/acceptance.md) | 五分钟验收清单：三条测试题 + 判据 + 四类失败签名 |
 
 ## 让子代理跑在别的模型上
 
@@ -107,12 +128,23 @@ preset 里的 `subagent` 行已经开了 `modelSelection` 与 `modelDiscovery`�
 ## 图标
 
 - 定位靠**文字**（`lib/client.js` 顶部的 `LABEL`），不是类名——DSH 的类名是构建哈希，升级就变。
+- 主判据是"容器文字整串等于 `LABEL`"；万一 DSH 换了图标实现，还有 `aria-label` / `title` 兜底。
+- 排查用：控制台执行 `window.__LS_ICON_STATUS__`，能看到 `{plugin, label, size, tagged, at}`。`tagged: 0` 就是没定位到。
 - 遮罩用 `currentColor`，深浅主题自动跟随。
 - 换图：替换 `assets/icon.png` 并重新编码进 `lib/client.js`；改大小：改 `ICON_SIZE`。
 
+## 开发
+
+```bash
+npm install          # 只装 js-yaml（校验器解析 !!js 标签用）
+npm test             # 39 项结构断言 + 8 项图标断言
+```
+
+`scripts/validate.cjs` 会拦住的回退包括：preset 行数/顺序变了、persona 少了承诺、persona 里写死别人的 provider、`modelSelection` 被关掉、`LABEL` 与 `config.name` 不一致、package.json 长出 `engines.dsh`。CI：把 `ci/validate.yml` 复制到 `.github/workflows/validate.yml` 就会在每次 push / PR 上跑同样两条命令。本仓库的推送账号没有 `workflow` scope，所以这个文件暂时放在 `ci/` 里（GitHub 拒绝通过 API 提交 workflow 文件）。
+
 ## 已知限制
 
-- **改名要同步**：`LABEL` 必须等于 preset 的 `config.name`，否则图标不出现。
+- **改名要同步三处**：`cordis.patch.yml` 里的 `config.name`、`lib/client.js` 顶部的 `LABEL`、README 里的截图说明。前两处不一致图标就不出现（`validate.cjs` 会拦）。
 - **图标会溢出**：34px 图标放在 22px 高的标签里，靠 `[data-ls-icon]{overflow:visible}` 接住；挡住相邻元素就把 `ICON_SIZE` 降到 28px。
 - **装了 billion-context 的话**：在 preset 行后补一条顺序栅栏：
   ```yaml

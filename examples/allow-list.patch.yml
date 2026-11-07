@@ -1,0 +1,23 @@
+# 子代理换模型的最小授权片段（复制到 profile 的 cordis.patch.yml 末尾）
+#
+# 为什么要这一步：
+#   preset 只负责打开 tool-subagent 的 modelSelection / modelDiscovery，
+#   真正的授权在会话层——没有白名单时，子代理只能使用父会话那条路由。
+#
+# 怎么改：
+#   1. provider / model 换成你自己机器上真实存在的路由
+#   2. 不确定有哪些，就在任意会话里跑一次 list_subagent_models（不带参数列 provider，
+#      带 {provider} 列该 provider 下的模型）
+#   3. 第一条建议留父会话自己那条（兜底），其余按便宜 → 贵的顺序排
+#   4. 改完重启 Harness；新会话才会带上策略（中途切模式不会补写）
+
+- id: subagent-model-selection-settings
+  name: '@deepseek-ai/dsh-tool-subagent/model-selection-settings'
+  config:
+    enabled: true
+    allowedModels:
+      # 父会话自己的路由：永远可用的兜底
+      - { provider: <your-provider>, model: <your-model> }
+      # 便宜/免费的机械活车道，可以写多条
+      - { provider: <free-provider>, model: <free-model-a> }
+      - { provider: <free-provider>, model: <free-model-b> }
