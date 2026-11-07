@@ -22,7 +22,8 @@ Eight hard constraints, each aimed at one recurring failure:
 | 4 | **Compute, don't estimate** — math, dates, boundaries and set operations are verified by running code | Numbers invented by mental arithmetic |
 | 5 | **Allowed to not know** — mark `[unknown]` and state what is missing | Wrapping uncertainty in "maybe / probably" |
 | 6 | **Decompose reasoning** — split complex inference into independently decidable propositions, judge each, then assemble | A long, plausible-looking chain with nothing testable in it |
-| 7 | **Subagents (on request)** — it can list the routes this machine allows (`list_subagent_models`, a read-only query), but never delegates unless you ask; the same holds for cross-validation and the context-free reviewer | Outsourcing judgement to save tokens, or grinding alone when delegation was asked for |
+| 7 | **Cross-validation (on request)** — for claims you cannot pin down, re-check from another angle yourself first; only when you explicitly ask does it send 2–3 subagents to answer independently, and before delivery it sends a reviewer that never saw the context — again, only on request | A self-confirming conclusion nobody attacked from the other side |
+| 8 | **Subagents: visible, never proactive** — it can list the routes this machine allows (`list_subagent_models`, a read-only query) but delegates nothing unless you ask; when it does, it picks by "available → cheapest → good enough" and switches after two consecutive failures on one route | Outsourcing judgement to save tokens, or grinding alone when delegation was asked for |
 
 ## Architecture
 
