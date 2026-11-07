@@ -32,5 +32,13 @@
     "deepseek-harness",
     "agent-preset"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anticbv/dsh-preset-deep.git"
+  },
+  "homepage": "https://github.com/anticbv/dsh-preset-deep#readme",
+  "bugs": {
+    "url": "https://github.com/anticbv/dsh-preset-deep/issues"
+  },
   "license": "MIT OR Apache-2.0"
 }
