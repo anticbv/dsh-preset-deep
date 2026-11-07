@@ -22,8 +22,18 @@ Eight hard constraints, each aimed at one recurring failure:
 | 4 | **Compute, don't estimate** — math, dates, boundaries and set operations are verified by running code | Numbers invented by mental arithmetic |
 | 5 | **Allowed to not know** — mark `[unknown]` and state what is missing | Wrapping uncertainty in "maybe / probably" |
 | 6 | **Decompose reasoning** — split complex inference into independently decidable propositions, judge each, then assemble | A long, plausible-looking chain with nothing testable in it |
-| 7 | **Cross-validation** — send uncertain claims to 2— subagents; before delivering an important conclusion, send a reviewer subagent that never saw this context | Self-confirmation, echo chambers |
-| 8 | **Spend compute by difficulty** — mechanical work goes to free-model subagents, judgement stays with you; effort follows difficulty | Paying top-tier rates to copy a file |
+| 7 | **Cross-validation (on request)** — subagents are sent to answer independently only when you ask; the same holds for the context-free reviewer before an important delivery | Self-confirmation, echo chambers |
+| 8 | **Subagents: visible, never proactive** — it can list the routes this machine allows, but never hands work off on its own; judgement stays local, effort follows difficulty | Outsourcing judgement to save tokens, or grinding alone when delegation was asked for |
+
+### Subagents: visible, but never proactive
+
+The preset enables subagent model routing (`modelSelection` + `modelDiscovery`), so `list_subagent_models` can always show which routes this machine allows — **visible**.
+
+The persona is explicit: **it never spawns a subagent unless you ask for one.** It will not outsource judgement to save tokens, and it will not fan out subagents for cross-validation on its own.
+
+- To delegate: say "spawn a subagent for X using `<provider>/<model>`".
+- To inspect only: say "list the available subagent routes" — a read-only query, no delegation.
+- Selecting a non-parent route also needs a session-level allow-list (see [below](#running-subagents-on-other-models)); without it only the parent route is allowed.
 
 ## Architecture
 

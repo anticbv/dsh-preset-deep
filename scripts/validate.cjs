@@ -72,11 +72,13 @@ if (doc) {
     const prefix = persona && persona.config && persona.config.prefix;
     check("找到 persona", Boolean(prefixed(prefix)));
     if (typeof prefix === "string") {
-      for (const needle of ["开工四问", "知止", "来源三分", "能算不算", "允许不知道", "推理", "交叉验证", "算力按难度分配"]) {
+      for (const needle of ["开工四问", "知止", "来源三分", "能算不算", "允许不知道", "推理", "交叉验证", "不主动用", "list_subagent_models"]) {
         check(`persona 含「${needle}」`, prefix.includes(needle));
       }
       check("persona 不含未注册的 {{…}} 模板变量", !/\{\{/.test(prefix), "persona 是原样注入的，没有插值");
       check("persona 里没有写死别人的 provider", !/our-free-model|Kilo Nemotron|deepseek-flash/.test(prefix));
+check("persona 不把「派子代理」当默认动作", !/机械活[^。]*派子 agent 去做/.test(prefix));
+check("persona 要求子代理须经用户明确要求", /明确要求/.test(prefix));
     }
 
     const planRow = byId("plan-mode") || flat.find((p) => p && p.config && typeof p.config.section === "string") || {};

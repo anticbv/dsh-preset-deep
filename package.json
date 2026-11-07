@@ -1,6 +1,6 @@
 {
   "name": "dsh-preset-deep",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "梁圣模式：DeepSeek Harness 的第五个工作模式——计划必须可证伪，结论必须带证据等级。",
   "type": "module",
   "main": "lib/index.js",
