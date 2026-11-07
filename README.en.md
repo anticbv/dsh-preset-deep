@@ -67,13 +67,7 @@ Three things worth noticing:
 
 ## Install
 
-**npm**
-
-```bash
-dsh plugin add dsh-preset-deep
-```
-
-**Manual**
+**Manual (the only working path today)**
 
 ```bash
 # 1. copy into the profile's node_modules
@@ -81,6 +75,10 @@ cp -r dsh-preset-deep ~/.dsh/profiles/<profile>/node_modules/
 # 2. append "dsh-preset-deep" to dsh.profile.bundles in the profile's package.json
 # 3. restart the harness
 ```
+
+**npm (not published yet)**
+
+> This package is not on npm yet, so `dsh plugin add dsh-preset-deep` will fail. This section takes effect once it is published.
 
 > Remove any hand-written `preset-deep` block from the profile's `cordis.patch.yml` first, or the two collide.
 
