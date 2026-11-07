@@ -68,6 +68,25 @@ if (doc) {
     })(plugins);
     const byId = (id) => flat.find((p) => p && p.id === id);
 
+    // 行数只能发现"删了一行"；改名、换序要靠这份基准（scripts/preset-baseline.json）。
+    const baselineFile = path.join(__dirname, "preset-baseline.json");
+    let baseline = null;
+    try {
+      baseline = JSON.parse(fs.readFileSync(baselineFile, "utf8"));
+    } catch (err) {
+      check("读到 preset 基准文件", false, err.message);
+    }
+    if (baseline) {
+      const rowsNow = flat.map((p) => [p.id, typeof p.name === "string" ? p.name : null]);
+      check(
+        "展平行 id+name 顺序与基准一致",
+        JSON.stringify(rowsNow) === JSON.stringify(baseline.rows),
+        firstDiff(rowsNow, baseline.rows)
+      );
+      const executor = byId("tool-executor-ptc");
+      check("tool-executor-ptc 包名正确", Boolean(executor) && executor.name === "@deepseek-ai/dsh-tool-executor-ptc", executor && executor.name);
+    }
+
     const persona = byId("persona");
     const prefix = persona && persona.config && persona.config.prefix;
     check("找到 persona", Boolean(prefixed(prefix)));
@@ -123,8 +142,19 @@ function prefixed(v) {
   return typeof v === "string" ? v : undefined;
 }
 
+function firstDiff(a, b) {
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i += 1) {
+    if (JSON.stringify(a[i]) !== JSON.stringify(b[i])) {
+      return "第一处差异 #" + i + "：" + JSON.stringify(a[i]) + " ≠ " + JSON.stringify(b[i]);
+    }
+  }
+  return "长度相同但内容不同";
+}
+
 function matchConst(src, name) {
-  const m = src.match(new RegExp(name + "\\s*=\\s*[\"']([^\"']*)[\"']"));
+  // 只认行首声明，注释里出现的同名赋值不算（锚定可防伪造）。
+  const m = src.match(new RegExp("^\\s*(?:var|const|let)\\s+" + name + "\\s*=\\s*[\"']([^\"']*)[\"']", "m"));
   return m ? m[1] : undefined;
 }
 

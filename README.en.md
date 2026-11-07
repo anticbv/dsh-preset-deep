@@ -1,6 +1,6 @@
-# Liangsheng Mode 路 dsh-preset-deep
+# Liangsheng Mode · dsh-preset-deep
 
-[涓枃](README.md) | [English](README.en.md)
+[中文](README.md) | [English](README.en.md)
 
 > A fifth work mode for **DeepSeek Harness**: **falsify first, deliver second.**
 
@@ -34,7 +34,7 @@ flowchart TD
         C["lib/client.js<br/>browser half"]
     end
 
-    P -->|insert| R["preset-deep 路 Liangsheng"]
+    P -->|insert| R["preset-deep · Liangsheng"]
     P -->|insert| I["ls-icon<br/>icon host row"]
 
     R --> PS["persona<br/>eight delivery contracts"]
@@ -67,7 +67,7 @@ Three things worth noticing:
 
 ## Install
 
-**Manual (the only working path today)**
+**Manual (the main path until the npm release)**
 
 ```bash
 # 1. copy into the profile's node_modules
@@ -76,10 +76,13 @@ cp -r dsh-preset-deep ~/.dsh/profiles/<profile>/node_modules/
 # 3. restart the harness
 ```
 
+> Back up the profile's `package.json` and `cordis.patch.yml` before editing them — DSH replaces both files wholesale, it does not merge them.
+
 **From the release tarball** (if you would rather not clone)
 
 ```bash
-tar -xzf dsh-preset-deep-0.1.0.tgz -C ~/.dsh/profiles/<profile>/node_modules/
+# <version> follows package.json / the Release page (currently 0.1.2)
+tar -xzf dsh-preset-deep-<version>.tgz -C ~/.dsh/profiles/<profile>/node_modules/
 mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node_modules/dsh-preset-deep
 # then add "dsh-preset-deep" to dsh.profile.bundles and restart
 ```
@@ -88,7 +91,7 @@ mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node
 
 > This package is not on npm yet, so `dsh plugin add dsh-preset-deep` will fail. This section takes effect once it is published.
 
-> Remove any hand-written `preset-deep` block from the profile's `cordis.patch.yml` first, or the two collide.
+> Remove any hand-written `preset-deep` block from the profile's `cordis.patch.yml` first, or the two collide. Remove only the full preset definition; if you added an `inject:` ordering fence on `- id: preset-deep` (see Known limitations), keep that row.
 
 ## Adapt the persona to your machine
 
@@ -99,7 +102,7 @@ The persona lives in the `persona` row of `cordis.patch.yml`, and the published 
 | File | What it is |
 |---|---|
 | [`examples/allow-list.patch.yml`](examples/allow-list.patch.yml) | Fill-in template for the subagent allow-list, paste into the profile's `cordis.patch.yml` |
-| [`examples/acceptance.md`](examples/acceptance.md) | Five-minute acceptance run: three test prompts, the pass line, four failure signatures |
+| [`examples/acceptance.md`](examples/acceptance.md) | Five-minute acceptance run: four test prompts, the pass line, four failure signatures |
 
 ## Subagents
 
@@ -131,7 +134,7 @@ Without it, asking for another route fails with `child LLM route "<p>/<m>" is no
 ## Icon
 
 - Located by **label text** (`LABEL` at the top of `lib/client.js`), not by class name — DSH's class names are build hashes and change on upgrade.
-- The primary match is "the container's trimmed text equals `LABEL`"; if DSH ever swaps the icon implementation, `aria-label` / `title` are the fallback.
+- The primary match is "the container's trimmed text equals `LABEL`"; if DSH ever swaps the icon implementation, `aria-label` / `title` are the fallback (they work even when the svg sits in a child node).
 - Debug with `window.__LS_ICON_STATUS__` in the console: `{plugin, label, size, tagged, at}`. `tagged: 0` means nothing matched.
 - The mask paints with `currentColor`, so it follows light and dark themes.
 - Replace the image by swapping `assets/icon.png` and re-encoding it into `lib/client.js`; resize with `ICON_SIZE`.
@@ -140,14 +143,14 @@ Without it, asking for another route fails with `child LLM route "<p>/<m>" is no
 
 ```bash
 npm install          # js-yaml only — the validator needs it to parse the !!js tag
-npm test             # 39 structural assertions + 8 icon assertions
+npm test             # 44 structural assertions + 10 icon assertions
 ```
 
-`scripts/validate.cjs` catches the regressions that matter: the preset rows or their order changed, a promise disappeared from the persona, someone hard-coded a foreign provider, `modelSelection` got turned off, `LABEL` drifted from `config.name`, or `package.json` grew an `engines.dsh`. CI: copy `ci/validate.yml` to `.github/workflows/validate.yml` and the same two commands run on every push and PR. It lives in `ci/` here because this repo's push token has no `workflow` scope (GitHub refuses workflow files over the API).
+`scripts/validate.cjs` catches the regressions that matter: the preset rows or their order changed, a promise disappeared from the persona, someone hard-coded a foreign provider, `modelSelection` got turned off, `LABEL` drifted from `config.name`, or `package.json` grew an `engines.dsh`. CI: `.github/workflows/validate.yml` runs the same two commands on every push and PR. If the push token lacks `workflow` scope, GitHub refuses that file over the API — push it with a scoped token instead; `ci/validate.yml` keeps the same config for local or third-party CI.
 
 ## Known limitations
 
-- **Renaming means syncing three places**: `config.name` in `cordis.patch.yml`, `LABEL` at the top of `lib/client.js`, and the screenshot caption in the README. If the first two disagree the icon silently does not appear (`validate.cjs` catches it).
+- **Renaming means syncing four code places plus one doc**: `config.name` in `cordis.patch.yml`, `LABEL` in `lib/client.js`, the registration id in `lib/client.js` (`__ModuleLoader__.load({ id: "dsh-preset-deep" })`), and `name` in `package.json`; the screenshot caption in the README too. If the first two disagree the icon silently does not appear (`validate.cjs` catches it); if the last two disagree the browser half never loads.
 - **The icon overflows**: a 34px icon inside a 22px-tall label, kept visible by `[data-ls-icon]{overflow:visible}`; drop `ICON_SIZE` to 28px if it collides.
 - **With billion-context installed**, add an ordering fence after the preset row:
   ```yaml
@@ -155,6 +158,19 @@ npm test             # 39 structural assertions + 8 icon assertions
     inject: [biliBasicCompactionPolicy]
   ```
 - Tested on harness runtime `0.2.2-rc.1` (same desktop version).
+
+## Icon scan cost
+
+Measured on a synthetic jsdom DOM (about 5000 svg nodes), Node `v26.12.1`, same machine:
+
+| Metric | This run | Notes |
+|---|---|---|
+| Build DOM | 71.9 ms | fixture cost, not plugin cost |
+| One `sync()` evaluation | 0.061 ms | selector + text comparison |
+| One `apply()` | 37.0 ms | first run includes style injection and tagging |
+| 10 consecutive rounds | 33.8 ms/round | stable value after MutationObserver coalescing |
+
+Wall-clock measurements; reruns on the same machine vary by 20–30%. For real-page numbers, measure 60 seconds in the DevTools Performance panel before quoting.
 
 ## Version compatibility
 
@@ -164,15 +180,17 @@ npm test             # 39 structural assertions + 8 icon assertions
 
 **Functional floor: `0.2.2-alpha.2`.**
 
-That is the first version whose `@deepseek-ai/dsh-web-app` `ptc` preset ships `tool-executor-ptc` and the new `modelSelection` / `modelDiscovery` keys; `0.2.1-rc.2` still used the old `modelSelectionSettings` key and had no PTC executor. Among the preset's 23 rows, `tool-executor-ptc` is the only hard dependency.
+That is the first version whose `@deepseek-ai/dsh-web-app` `ptc` preset ships `tool-executor-ptc` and the new `modelSelection` / `modelDiscovery` keys; `0.2.1-rc.2` still used the old `modelSelectionSettings` key and had no PTC executor. All 23 rows resolve by package name, so renaming any of them breaks the install; `tool-executor-ptc` sets the functional floor — only the official `ptc` preset from 0.2.2-alpha.2 onward ships it.
 
 | Version | Result |
 |---|---|
 | `0.2.2-rc.1` (tested on desktop) | ✅ Everything passes: mount, icon, subagent routing |
-| `0.2.2-alpha.2` — `0.2.2-rc.1` | ✅ Expected to work (rows and executor present) |
+| `0.2.2-alpha.2` — `0.2.2-rc.1` | ⚠️ Partially tested (alpha.2: profile composition, web boot and client bundle load + style injection all pass; the start page has no preset switcher, so icon tagging was not triggered. rc.1 is the daily driver) |
 | `≤ 0.2.1` | ⚠️ The bundle still loads, but `tool-executor-ptc` cannot be resolved and the mode card may show as broken |
 
 This repo's `cordis.patch.yml` is derived from the official `0.2.2-rc.1` `presets/ptc.patch.yml`: two delegation rows removed, persona and plan-mode replaced.
+
+**One deliberate difference from upstream**: the persona does not interpolate `{{model}}` (upstream uses that placeholder). `validate.cjs` therefore forbids `{{` in the persona — a choice, not a bug; switching to the template form means relaxing that assertion too.
 
 To force an install on another version, grant an **exact-version** exemption in the profile's `compatibility.json` — an unmet gate skips the whole bundle rather than degrading it.
 

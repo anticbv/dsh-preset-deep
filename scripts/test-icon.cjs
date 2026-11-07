@@ -25,26 +25,50 @@ function svg(parent) {
   return { tagName: "svg", parentElement: parent, children: [], ...attrs() };
 }
 
+function findSvg(el) {
+  const kids = el.children || [];
+  for (let i = 0; i < kids.length; i += 1) {
+    if (kids[i] && kids[i].tagName === "svg") return kids[i];
+    const nested = findSvg(kids[i]);
+    if (nested) return nested;
+  }
+  return null;
+}
+
 function host(text, extra) {
   const el = { textContent: text, children: [], ...attrs(), ...(extra || {}) };
   const icon = svg(el);
   el.children.push(icon);
   el.icon = icon;
+  el.querySelector = (sel) => (sel === "svg" ? findSvg(el) : null);
   return el;
 }
 
-// 三种情况：正常命中 / 不该命中 / 只有 aria-label（兜底路径）
+// 孙节点：宿主 -> span -> svg，外层靠 aria-label 才认得出
+function nestedHost(text, extra) {
+  const el = { textContent: text, children: [], ...attrs(), ...(extra || {}) };
+  const wrap = { tagName: "span", parentElement: el, children: [], ...attrs() };
+  const icon = svg(wrap);
+  wrap.children.push(icon);
+  el.children.push(wrap);
+  el.icon = icon;
+  el.querySelector = (sel) => (sel === "svg" ? icon : null);
+  return el;
+}
+
+// 四种情况：正常命中 / 不该命中 / 只有 aria-label / svg 藏在孙节点
 const deep = host("梁圣模式");
 const standard = host("标准模式");
 const ariaOnly = host("", { "aria-label": "梁圣模式" });
 ariaOnly.textContent = "";
+const nested = nestedHost("", { "aria-label": "梁圣模式" });
 
 const document = {
   body: {},
   head: { appendChild: (t) => styleTags.push(t) },
   querySelectorAll: (sel) => {
-    if (sel === "svg") return [deep.icon, standard.icon, ariaOnly.icon];
-    if (sel.includes("aria-label")) return [ariaOnly];
+    if (sel === "svg") return [deep.icon, standard.icon, ariaOnly.icon, nested.icon];
+    if (sel.includes("aria-label")) return [ariaOnly, nested];
     return [];
   },
   querySelector: (sel) => (sel.includes("data-ls-icon-style") ? styleTags[0] || null : null),
@@ -78,7 +102,9 @@ const checks = [
   ["命中目标模式", deep.hasAttribute("data-ls-icon")],
   ["其他模式没被改", !standard.hasAttribute("data-ls-icon")],
   ["aria-label 兜底生效", ariaOnly.hasAttribute("data-ls-icon")],
-  ["探针记录命中数", status.tagged === 2],
+  ["孙节点兜底生效", nested.hasAttribute("data-ls-icon")],
+  ["CSS 用后代选择器", (styleTags[0] ? styleTags[0].textContent : "").includes("[data-ls-icon] svg {") && !(styleTags[0] ? styleTags[0].textContent : "").includes("[data-ls-icon] > svg {")],
+  ["探针记录命中数", status.tagged === 3],
 ];
 
 let failed = 0;

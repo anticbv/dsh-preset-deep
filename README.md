@@ -67,7 +67,7 @@ flowchart TD
 
 ## 安装
 
-**手动（当前唯一可用路径）**
+**手动（npm 发布前的主要路径）**
 
 ```bash
 # 1. 复制到 profile 的 node_modules
@@ -76,10 +76,13 @@ cp -r dsh-preset-deep ~/.dsh/profiles/<profile>/node_modules/
 # 3. 重启 Harness
 ```
 
+> 改 profile 的 `package.json` / `cordis.patch.yml` 前先备份这两个文件——DSH 对它们是整体替换，不是合并。
+
 **从 release 的 tarball 安装**（不想 clone 的话）
 
 ```bash
-tar -xzf dsh-preset-deep-0.1.0.tgz -C ~/.dsh/profiles/<profile>/node_modules/
+# <version> 以 package.json / Release 页为准（当前 0.1.2）
+tar -xzf dsh-preset-deep-<version>.tgz -C ~/.dsh/profiles/<profile>/node_modules/
 mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node_modules/dsh-preset-deep
 # 同样把 "dsh-preset-deep" 加进 dsh.profile.bundles，然后重启
 ```
@@ -88,7 +91,7 @@ mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node
 
 > 这个包还没发到 npm，`dsh plugin add dsh-preset-deep` 现在会失败。发布后本条即生效。
 
-> 装之前先删掉 profile 的 `cordis.patch.yml` 里手写的那段 `preset-deep`，否则同名冲突。
+> 装之前先删掉 profile 的 `cordis.patch.yml` 里手写的那段 `preset-deep`，否则同名冲突。只删整段 preset 定义；如果你按「已知限制」给 `- id: preset-deep` 加过 `inject:` 顺序栅栏，保留那一条。
 
 ## 按你的环境改写 persona
 
@@ -99,7 +102,7 @@ persona 在 `cordis.patch.yml` 的 `persona` 行里，发布版**不点名任何
 | 文件 | 干什么 |
 |---|---|
 | [`examples/allow-list.patch.yml`](examples/allow-list.patch.yml) | 子代理白名单的填空模板，复制进 profile 的 `cordis.patch.yml` |
-| [`examples/acceptance.md`](examples/acceptance.md) | 五分钟验收清单：三条测试题 + 判据 + 四类失败签名 |
+| [`examples/acceptance.md`](examples/acceptance.md) | 五分钟验收清单：四道测试题 + 判据 + 四类失败签名 |
 
 ## 子代理
 
@@ -131,7 +134,7 @@ persona 在 `cordis.patch.yml` 的 `persona` 行里，发布版**不点名任何
 ## 图标
 
 - 定位靠**文字**（`lib/client.js` 顶部的 `LABEL`），不是类名——DSH 的类名是构建哈希，升级就变。
-- 主判据是"容器文字整串等于 `LABEL`"；万一 DSH 换了图标实现，还有 `aria-label` / `title` 兜底。
+- 主判据是"容器文字整串等于 `LABEL`"；万一 DSH 换了图标实现，还有 `aria-label` / `title` 兜底（svg 藏在子节点里也能命中）。
 - 排查用：控制台执行 `window.__LS_ICON_STATUS__`，能看到 `{plugin, label, size, tagged, at}`。`tagged: 0` 就是没定位到。
 - 遮罩用 `currentColor`，深浅主题自动跟随。
 - 换图：替换 `assets/icon.png` 并重新编码进 `lib/client.js`；改大小：改 `ICON_SIZE`。
@@ -140,14 +143,14 @@ persona 在 `cordis.patch.yml` 的 `persona` 行里，发布版**不点名任何
 
 ```bash
 npm install          # 只装 js-yaml（校验器解析 !!js 标签用）
-npm test             # 39 项结构断言 + 8 项图标断言
+npm test             # 44 项结构断言 + 10 项图标断言
 ```
 
-`scripts/validate.cjs` 会拦住的回退包括：preset 行数/顺序变了、persona 少了承诺、persona 里写死别人的 provider、`modelSelection` 被关掉、`LABEL` 与 `config.name` 不一致、package.json 长出 `engines.dsh`。CI：把 `ci/validate.yml` 复制到 `.github/workflows/validate.yml` 就会在每次 push / PR 上跑同样两条命令。本仓库的推送账号没有 `workflow` scope，所以这个文件暂时放在 `ci/` 里（GitHub 拒绝通过 API 提交 workflow 文件）。
+`scripts/validate.cjs` 会拦住的回退包括：preset 行数/顺序变了、persona 少了承诺、persona 里写死别人的 provider、`modelSelection` 被关掉、`LABEL` 与 `config.name` 不一致、package.json 长出 `engines.dsh`。CI：`.github/workflows/validate.yml` 在每次 push / PR 上跑同样两条命令。推送账号若没有 `workflow` scope，GitHub 会拒绝通过 API 提交这个文件——换带 scope 的 token 重推；`ci/validate.yml` 保留同一份配置，便于本地或其它 CI 直接复用。
 
 ## 已知限制
 
-- **改名要同步三处**：`cordis.patch.yml` 里的 `config.name`、`lib/client.js` 顶部的 `LABEL`、README 里的截图说明。前两处不一致图标就不出现（`validate.cjs` 会拦）。
+- **改名要同步四处代码 + 一处文档**：`cordis.patch.yml` 的 `config.name`、`lib/client.js` 的 `LABEL`、`lib/client.js` 的 registration id（`__ModuleLoader__.load({ id: "dsh-preset-deep" })`）、`package.json` 的 `name`；README 里的截图说明也要跟着改。前两处不一致图标不出现（`validate.cjs` 会拦），后两处不一致客户端半边加载不上。
 - **图标会溢出**：34px 图标放在 22px 高的标签里，靠 `[data-ls-icon]{overflow:visible}` 接住；挡住相邻元素就把 `ICON_SIZE` 降到 28px。
 - **装了 billion-context 的话**：在 preset 行后补一条顺序栅栏：
   ```yaml
@@ -155,6 +158,19 @@ npm test             # 39 项结构断言 + 8 项图标断言
     inject: [biliBasicCompactionPolicy]
   ```
 - 测试环境：Harness 运行时 `0.2.2-rc.1`（桌面版同版本）。
+
+## 图标扫描开销
+
+jsdom 合成 DOM（约 5000 个 svg）、Node `v26.12.1`、同一台机器实测：
+
+| 指标 | 本次 | 说明 |
+|---|---|---|
+| 构建 DOM | 71.9 ms | 测试夹具成本，不算插件开销 |
+| 单次 `sync()` 求值 | 0.061 ms | 选择器 + 文本比对 |
+| 单次 `apply()` | 37.0 ms | 首次包含建 style 与全量打标 |
+| 连续 10 轮 | 33.8 ms/轮 | MutationObserver 合并后的稳定值 |
+
+墙钟测量，同机复跑允许 ±20–30%；真实页面数字请用 DevTools Performance 面板测 60 秒再引用。
 
 ## 版本兼容性
 
@@ -164,15 +180,17 @@ npm test             # 39 项结构断言 + 8 项图标断言
 
 **功能下限：`0.2.2-alpha.2`。**
 
-从这一版起 `@deepseek-ai/dsh-web-app` 的 `ptc` preset 才带上 `tool-executor-ptc`，并把子代理的两个键改成 `modelSelection` / `modelDiscovery`；`0.2.1-rc.2` 用的还是旧键 `modelSelectionSettings`，且没有 PTC 执行器。preset 的 23 行里，`tool-executor-ptc` 是唯一的硬依赖。
+从这一版起 `@deepseek-ai/dsh-web-app` 的 `ptc` preset 才带上 `tool-executor-ptc`，并把子代理的两个键改成 `modelSelection` / `modelDiscovery`；`0.2.1-rc.2` 用的还是旧键 `modelSelectionSettings`，且没有 PTC 执行器。preset 的 23 行都按包名解析，任何一处改名都会解析失败；`tool-executor-ptc` 决定功能下限——只有 0.2.2-alpha.2 起的官方 `ptc` preset 才带它。
 
 | 版本 | 结果 |
 |---|---|
 | `0.2.2-rc.1`（桌面版实测） | ✅ 全部通过：模式挂载、图标、子代理切路由 |
-| `0.2.2-alpha.2` ～ `0.2.2-rc.1` | ✅ 预期可用（preset 行与执行器齐备） |
+| `0.2.2-alpha.2` ～ `0.2.2-rc.1` | ⚠️ 部分实测（alpha.2：profile 合成、web 启动、客户端脚本加载并注入样式均通过；启动页没有预设切换器，图标打标未触发。rc.1 为日常运行环境） |
 | `≤ 0.2.1` | ⚠️ bundle 仍会装载，但 `tool-executor-ptc` 解析不到包，模式卡可能显示为异常/损坏 |
 
 本仓库的 `cordis.patch.yml` 与官方 `0.2.2-rc.1` 的 `presets/ptc.patch.yml` 同源——去掉 delegation 里两行、替换 persona 与 plan-mode 之后的产物。
+
+**与官方的一处有意差异**：persona 不做 `{{model}}` 插值（官方用 `{{model}}` 占位）。因此 `validate.cjs` 禁止 persona 出现 `{{`——这是选择，不是 bug；要改成模板写法，得同时放开断言。
 
 要在别的版本上强制安装：在 profile 的 `compatibility.json` 里按**精确版本**给豁免（版本门不满足时是整条跳过，不是降级）。
 
