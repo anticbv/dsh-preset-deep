@@ -22,18 +22,7 @@ Eight hard constraints, each aimed at one recurring failure:
 | 4 | **Compute, don't estimate** — math, dates, boundaries and set operations are verified by running code | Numbers invented by mental arithmetic |
 | 5 | **Allowed to not know** — mark `[unknown]` and state what is missing | Wrapping uncertainty in "maybe / probably" |
 | 6 | **Decompose reasoning** — split complex inference into independently decidable propositions, judge each, then assemble | A long, plausible-looking chain with nothing testable in it |
-| 7 | **Cross-validation (on request)** — subagents are sent to answer independently only when you ask; the same holds for the context-free reviewer before an important delivery | Self-confirmation, echo chambers |
-| 8 | **Subagents: visible, never proactive** — it can list the routes this machine allows, but never hands work off on its own; judgement stays local, effort follows difficulty | Outsourcing judgement to save tokens, or grinding alone when delegation was asked for |
-
-### Subagents: visible, but never proactive
-
-The preset enables subagent model routing (`modelSelection` + `modelDiscovery`), so `list_subagent_models` can always show which routes this machine allows — **visible**.
-
-The persona is explicit: **it never spawns a subagent unless you ask for one.** It will not outsource judgement to save tokens, and it will not fan out subagents for cross-validation on its own.
-
-- To delegate: say "spawn a subagent for X using `<provider>/<model>`".
-- To inspect only: say "list the available subagent routes" — a read-only query, no delegation.
-- Selecting a non-parent route also needs a session-level allow-list (see [below](#running-subagents-on-other-models)); without it only the parent route is allowed.
+| 7 | **Subagents (on request)** — it can list the routes this machine allows (`list_subagent_models`, a read-only query), but never delegates unless you ask; the same holds for cross-validation and the context-free reviewer | Outsourcing judgement to save tokens, or grinding alone when delegation was asked for |
 
 ## Architecture
 
@@ -102,9 +91,7 @@ mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node
 
 ## Adapt the persona to your machine
 
-The "delegate mechanical work" rule in the persona is **deliberately neutral**: it names no provider and no model, and only says "call `list_subagent_models` first, then pick by available → cheapest → good enough". That way someone else installing this is never told to call a route that does not exist on their machine.
-
-Want it tighter? Edit that one line of the persona in `cordis.patch.yml` and pin your preferred model. Then run `node scripts/validate.cjs` — it fails if the persona starts hard-coding someone else's provider.
+The persona lives in the `persona` row of `cordis.patch.yml`, and the published version **names no provider and no model**. To tighten it, rewrite that row — pin your preferred model, or make your own install delegate to free models automatically — then run `node scripts/validate.cjs`, which blocks regressions such as hard-coding someone else's provider.
 
 ## Examples
 
@@ -113,15 +100,20 @@ Want it tighter? Edit that one line of the persona in `cordis.patch.yml` and pin
 | [`examples/allow-list.patch.yml`](examples/allow-list.patch.yml) | Fill-in template for the subagent allow-list, paste into the profile's `cordis.patch.yml` |
 | [`examples/acceptance.md`](examples/acceptance.md) | Five-minute acceptance run: three test prompts, the pass line, four failure signatures |
 
-## Running subagents on other models
+## Subagents
 
-This is what separates it from the four built-in modes: **mechanical work can go to a cheap model while judgement stays with you.**
+**Visible, but never proactive.**
 
-The preset's `subagent` row enables `modelSelection` and `modelDiscovery`, so a subagent may take `provider` / `model` / `reasoning_effort`. But the harness enforces one rule:
+- The preset's `subagent` row enables `modelSelection` + `modelDiscovery`, so `list_subagent_models` can always list the routes this machine allows — a read-only query, not delegation.
+- The persona is explicit: **unless you ask for a subagent, none is spawned.** It will not outsource judgement to save tokens, and it will not fan out subagents for cross-validation on its own.
+- To delegate, just say so: "spawn a subagent for X using `<provider>/<model>`". It picks one by "available → cheapest → good enough" and switches after two consecutive failures on the same route instead of retrying it.
+- To cross-validate: "send 2–3 subagents to answer this independently"; before an important delivery, add "send a reviewer subagent that never saw this context".
+
+### Allow-list: the prerequisite for non-parent routes
 
 > Without a session-level allow-list, a subagent may only use the parent session's own route.
 
-That is the real reason the other modes cannot fan out to other models — the official presets also set `modelSelection: true`, but never ship an allow-list. Append to the profile's `cordis.patch.yml`:
+That is the real reason other modes cannot reach other models — the official presets do write `modelSelection: true`, but none of them ever configures an allow-list. Append to the profile's `cordis.patch.yml`:
 
 ```yaml
 - id: subagent-model-selection-settings
@@ -130,10 +122,10 @@ That is the real reason the other modes cannot fan out to other models — the o
     enabled: true
     allowedModels:
       - { provider: deepseek-account, model: deepseek-flash }
-      - { provider: <your free provider>, model: <model id> }
+      - { provider: <your-free-provider>, model: <model-id> }
 ```
 
-Without it, naming another route fails with `child LLM route "<p>/<m>" is not allowed for this Session`.
+Without it, asking for another route fails with `child LLM route "<p>/<m>" is not allowed for this Session`. A fill-in template ships as [`examples/allow-list.patch.yml`](examples/allow-list.patch.yml).
 
 ## Icon
 

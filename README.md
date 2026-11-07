@@ -22,18 +22,7 @@ Harness 自带的四个模式（standard / ptc / minimal / cordis）解决的是
 | 4 | **能算不算** — 数学、日期、边界、集合运算一律写代码验 | 心算造出的错误数字 |
 | 5 | **允许不知道** — 拿不准标 `[未知]` 并写明缺什么 | 用"可能/大概"把不确定包装成结论 |
 | 6 | **推理拆解** — 复杂推理拆成可独立判真假的小命题，逐个判再组装 | 一大段看起来严密、其实没有可检验环节的推断 |
-| 7 | **交叉验证（按需）** — 你明确要求时才派 2–3 个子代理独立作答；重要结论交付前也一样，只有你要求才派**不带本次上下文**的复核者 | 自证自话、回音室 |
-| 8 | **子代理：看得见，不主动用** — 能列出这台机器允许的路由，但不会自己把活派出去；判断活永远自己做，effort 跟难度走 | 为省 token 把判断派出去，或该派时闷头硬扛 |
-
-### 子代理：看得见，但不主动用
-
-本模式打开了子代理的模型路由（`modelSelection` + `modelDiscovery`），所以 `list_subagent_models` 随时能列出这台机器允许哪些路由——**看得见**。
-
-但 persona 明确规定：**除非你明确要求，否则它不会主动派子代理**。它不会为了省 token 把判断活外包出去，也不会自己「顺手开几个」子代理跑交叉验证。
-
-- 想让它派活：直接说「派个子代理去做 X，用 `<provider>/<model>`」。
-- 只想看能力：说「列一下可用的子代理路由」，这是只读查询，不派活。
-- 真正能选到非父路由还需要会话级白名单（见[下节](#running-subagents-on-other-models)），否则只允许父路由。
+| 7 | **子代理（按需）** — 能列出这台机器允许的路由（`list_subagent_models`，只读查询），但除非你明确要求，不会主动派活；交叉验证与复核者同理 | 为省 token 把判断外包，或该派时闷头硬扛 |
 
 ## 架构
 
@@ -102,9 +91,7 @@ mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node
 
 ## 按你的环境改写 persona
 
-persona 里那条「派子 agent」的规则**故意写成了中性的**：不点名任何 provider 或模型，只说「先调 `list_subagent_models` 看清这台机器允许哪些路由，再按可用 → 便宜 → 够用挑一条」。这样别人装上不会教模型去调不存在的路由。
-
-想收紧的话，改 `cordis.patch.yml` 里 persona 的那一行即可，例如把首选模型写死成你自己常用的那条。改完跑一次 `node scripts/validate.cjs`——它会拦住"persona 里写死了别人的 provider"这类回退。
+persona 在 `cordis.patch.yml` 的 `persona` 行里，发布版**不点名任何 provider 或模型**。想收紧就改那一行，例如把首选模型写死成你自己常用的那条、或让它在本机自动派免费模型；改完跑一次 `node scripts/validate.cjs`——它会拦住「persona 里写死了别人的 provider」这类回退。
 
 ## 示例
 
@@ -113,15 +100,20 @@ persona 里那条「派子 agent」的规则**故意写成了中性的**：不�
 | [`examples/allow-list.patch.yml`](examples/allow-list.patch.yml) | 子代理白名单的填空模板，复制进 profile 的 `cordis.patch.yml` |
 | [`examples/acceptance.md`](examples/acceptance.md) | 五分钟验收清单：三条测试题 + 判据 + 四类失败签名 |
 
-## 让子代理跑在别的模型上
+## 子代理
 
-这是本模式区别于前四个模式的关键：**机械活可以派给便宜模型，判断活留给自己。**
+**看得见，但不主动用。**
 
-preset 里的 `subagent` 行已经开了 `modelSelection` 与 `modelDiscovery`，所以子代理可以指定 `provider` / `model` / `reasoning_effort`。但 Harness 有一条安全约束：
+- preset 的 `subagent` 行开着 `modelSelection` + `modelDiscovery`，所以 `list_subagent_models` 随时能列出这台机器允许的路由——这是只读查询，不算派活。
+- persona 规定：**除非你明确要求，否则它不会派子代理**。不会为省 token 把判断活外包，也不会自己开几个子代理跑交叉验证。
+- 要派活就直说：「派个子代理去做 X，用 `<provider>/<model>`」。它会按「当前可用 → 成本最低 → 能力足够」挑一条，同一条连失两次就换下一条，不重试同一条。
+- 要交叉验证：「派 2–3 个子代理独立回答这个问题」；重要结论交付前加一句「派一个不带本次上下文的复核者看这份结论」。
+
+### 白名单：换到非父路由的前提
 
 > 没有会话级白名单时，子代理只能使用父会话同一条路由。
 
-这就是"别的模式派不动别的模型"的真实原因——官方 preset 其实也写了 `modelSelection: true`，但从来没有配过白名单。在 profile 的 `cordis.patch.yml` 追加：
+这就是「别的模式派不动别的模型」的真实原因——官方 preset 其实也写了 `modelSelection: true`，但从来没有配过白名单。在 profile 的 `cordis.patch.yml` 追加：
 
 ```yaml
 - id: subagent-model-selection-settings
@@ -133,7 +125,7 @@ preset 里的 `subagent` 行已经开了 `modelSelection` 与 `modelDiscovery`�
       - { provider: <你的 free provider>, model: <模型 id> }
 ```
 
-不配的话，显式指定别的路由会直接报 `child LLM route "<p>/<m>" is not allowed for this Session`。
+不配的话，显式指定别的路由会直接报 `child LLM route "<p>/<m>" is not allowed for this Session`。填空模板见 [`examples/allow-list.patch.yml`](examples/allow-list.patch.yml)。
 
 ## 图标
 
