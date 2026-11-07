@@ -59,10 +59,7 @@ function nestedHost(text, extra) {
 // 容器里除了图标 svg 还有第二支 svg（alpha.2 的下拉箭头），只能遮罩第一支
 function twoSvgHost(text) {
   const el = host(text);
-  const chevron = svg(el);
-  el.children.push(chevron);
-  el.chevron = chevron;
-  el.querySelector = (sel) => (sel === "svg" ? findSvg(el) : null);
+  el.children.push(svg(el));
   return el;
 }
 
@@ -105,17 +102,18 @@ const mod = loaded.factory(() => { throw new Error("client 不该 require 任何
 mod.apply({});
 
 const status = window.__LS_ICON_STATUS__ || {};
+const css = styleTags[0] ? styleTags[0].textContent : "";
 const checks = [
   ["工厂 id 正确", loaded.id === "dsh-preset-deep"],
   ["exports 有 apply / inject", typeof mod.apply === "function" && Array.isArray(mod.inject)],
   ["样式只注入一次", styleTags.length === 1],
-  ["样式含遮罩图", (styleTags[0] ? styleTags[0].textContent : "").includes("data:image/png;base64,")],
+  ["样式含遮罩图", css.includes("data:image/png;base64,")],
   ["命中目标模式", deep.hasAttribute("data-ls-icon")],
   ["其他模式没被改", !standard.hasAttribute("data-ls-icon")],
   ["aria-label 兜底生效", ariaOnly.hasAttribute("data-ls-icon")],
   ["孙节点兜底生效", nested.hasAttribute("data-ls-icon")],
-  ["CSS 只遮罩首支 svg", (styleTags[0] ? styleTags[0].textContent : "").includes("[data-ls-icon] svg:first-child {") && !(styleTags[0] ? styleTags[0].textContent : "").includes("[data-ls-icon] svg {")],
-  ["隐藏原内容也只作用于首支", (styleTags[0] ? styleTags[0].textContent : "").includes("[data-ls-icon] svg:first-child > * { visibility: hidden; }")],
+  ["CSS 只遮罩首支 svg", css.includes("[data-ls-icon] svg:first-child {") && !css.includes("[data-ls-icon] svg {")],
+  ["隐藏原内容也只作用于首支", css.includes("[data-ls-icon] svg:first-child > * { visibility: hidden; }")],
   ["带箭头的容器照样打标", withChevron.hasAttribute("data-ls-icon")],
   ["探针记录命中数", status.tagged === 4],
 ];

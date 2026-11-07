@@ -143,7 +143,7 @@ Without it, asking for another route fails with `child LLM route "<p>/<m>" is no
 
 ```bash
 npm install          # js-yaml only — the validator needs it to parse the !!js tag
-npm test             # 44 structural assertions + 10 icon assertions
+npm test             # 44 structural assertions + 12 icon assertions
 ```
 
 `scripts/validate.cjs` catches the regressions that matter: the preset rows or their order changed, a promise disappeared from the persona, someone hard-coded a foreign provider, `modelSelection` got turned off, `LABEL` drifted from `config.name`, or `package.json` grew an `engines.dsh`. CI: `.github/workflows/validate.yml` runs the same two commands on every push and PR. If the push token lacks `workflow` scope, GitHub refuses that file over the API — push it with a scoped token instead; `ci/validate.yml` keeps the same config for local or third-party CI.

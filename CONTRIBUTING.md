@@ -4,7 +4,7 @@
 
 ```bash
 npm install        # 安装 js-yaml（devDependency）
-npm test           # 44 项结构断言 + 10 项图标断言
+npm test           # 44 项结构断言 + 12 项图标断言
 npm run acceptance # 验收文档标记完整性（4 行 PASS/FAIL）
 ```
 

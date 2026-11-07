@@ -143,7 +143,7 @@ persona 在 `cordis.patch.yml` 的 `persona` 行里，发布版**不点名任何
 
 ```bash
 npm install          # 只装 js-yaml（校验器解析 !!js 标签用）
-npm test             # 44 项结构断言 + 10 项图标断言
+npm test             # 44 项结构断言 + 12 项图标断言
 ```
 
 `scripts/validate.cjs` 会拦住的回退包括：preset 行数/顺序变了、persona 少了承诺、persona 里写死别人的 provider、`modelSelection` 被关掉、`LABEL` 与 `config.name` 不一致、package.json 长出 `engines.dsh`。CI：`.github/workflows/validate.yml` 在每次 push / PR 上跑同样两条命令。推送账号若没有 `workflow` scope，GitHub 会拒绝通过 API 提交这个文件——换带 scope 的 token 重推；`ci/validate.yml` 保留同一份配置，便于本地或其它 CI 直接复用。
