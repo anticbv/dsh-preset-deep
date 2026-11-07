@@ -1,4 +1,4 @@
-﻿# Liangsheng Mode 路 dsh-preset-deep
+# Liangsheng Mode 路 dsh-preset-deep
 
 [涓枃](README.md) | [English](README.en.md)
 
