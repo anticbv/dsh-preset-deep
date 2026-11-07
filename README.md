@@ -119,7 +119,27 @@ preset 里的 `subagent` 行已经开了 `modelSelection` 与 `modelDiscovery`�
   - id: preset-deep
     inject: [biliBasicCompactionPolicy]
   ```
-- 测试环境：Harness 运行时 `0.2.1-rc.5`（桌面版 `0.2.2-rc.1`）。
+- 测试环境：Harness 运行时 `0.2.2-rc.1`（桌面版同版本）。
+
+## 版本兼容性
+
+**没有版本门，这是刻意的。**
+
+`package.json` 里既没有 `engines.dsh`，也没有 `@deepseek-ai/dsh*` 的 `peerDependencies`。DSH 的判定顺序是：有 `engines.dsh` 就只看它，否则逐个检查 `dsh` peer；两者都不存在时根本没有可判定项，于是**永远不会被判成不兼容，也就不会被整条跳过**。这给了最大的可装载范围。
+
+**功能下限：`0.2.2-alpha.2`。**
+
+从这一版起 `@deepseek-ai/dsh-web-app` 的 `ptc` preset 才带上 `tool-executor-ptc`，并把子代理的两个键改成 `modelSelection` / `modelDiscovery`；`0.2.1-rc.2` 用的还是旧键 `modelSelectionSettings`，且没有 PTC 执行器。preset 的 23 行里，`tool-executor-ptc` 是唯一的硬依赖。
+
+| 版本 | 结果 |
+|---|---|
+| `0.2.2-rc.1`（桌面版实测） | ✅ 全部通过：模式挂载、图标、子代理切路由 |
+| `0.2.2-alpha.2` ～ `0.2.2-rc.1` | ✅ 预期可用（preset 行与执行器齐备） |
+| `≤ 0.2.1` | ⚠️ bundle 仍会装载，但 `tool-executor-ptc` 解析不到包，模式卡可能显示为异常/损坏 |
+
+本仓库的 `cordis.patch.yml` 与官方 `0.2.2-rc.1` 的 `presets/ptc.patch.yml` 同源——去掉 delegation 里两行、替换 persona 与 plan-mode 之后的产物。
+
+要在别的版本上强制安装：在 profile 的 `compatibility.json` 里按**精确版本**给豁免（版本门不满足时是整条跳过，不是降级）。
 
 ## 许可证
 
