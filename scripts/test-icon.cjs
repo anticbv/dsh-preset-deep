@@ -56,8 +56,19 @@ function nestedHost(text, extra) {
   return el;
 }
 
-// 四种情况：正常命中 / 不该命中 / 只有 aria-label / svg 藏在孙节点
+// 容器里除了图标 svg 还有第二支 svg（alpha.2 的下拉箭头），只能遮罩第一支
+function twoSvgHost(text) {
+  const el = host(text);
+  const chevron = svg(el);
+  el.children.push(chevron);
+  el.chevron = chevron;
+  el.querySelector = (sel) => (sel === "svg" ? findSvg(el) : null);
+  return el;
+}
+
+// 五种情况：正常命中 / 不该命中 / 只有 aria-label / svg 藏在孙节点 / 带箭头
 const deep = host("梁圣模式");
+const withChevron = twoSvgHost("梁圣模式");
 const standard = host("标准模式");
 const ariaOnly = host("", { "aria-label": "梁圣模式" });
 ariaOnly.textContent = "";
@@ -67,7 +78,7 @@ const document = {
   body: {},
   head: { appendChild: (t) => styleTags.push(t) },
   querySelectorAll: (sel) => {
-    if (sel === "svg") return [deep.icon, standard.icon, ariaOnly.icon, nested.icon];
+    if (sel === "svg") return [deep.icon, standard.icon, ariaOnly.icon, nested.icon, withChevron.icon];
     if (sel.includes("aria-label")) return [ariaOnly, nested];
     return [];
   },
@@ -103,8 +114,10 @@ const checks = [
   ["其他模式没被改", !standard.hasAttribute("data-ls-icon")],
   ["aria-label 兜底生效", ariaOnly.hasAttribute("data-ls-icon")],
   ["孙节点兜底生效", nested.hasAttribute("data-ls-icon")],
-  ["CSS 用后代选择器", (styleTags[0] ? styleTags[0].textContent : "").includes("[data-ls-icon] svg {") && !(styleTags[0] ? styleTags[0].textContent : "").includes("[data-ls-icon] > svg {")],
-  ["探针记录命中数", status.tagged === 3],
+  ["CSS 只遮罩首支 svg", (styleTags[0] ? styleTags[0].textContent : "").includes("[data-ls-icon] svg:first-child {") && !(styleTags[0] ? styleTags[0].textContent : "").includes("[data-ls-icon] svg {")],
+  ["隐藏原内容也只作用于首支", (styleTags[0] ? styleTags[0].textContent : "").includes("[data-ls-icon] svg:first-child > * { visibility: hidden; }")],
+  ["带箭头的容器照样打标", withChevron.hasAttribute("data-ls-icon")],
+  ["探针记录命中数", status.tagged === 4],
 ];
 
 let failed = 0;
