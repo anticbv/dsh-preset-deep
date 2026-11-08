@@ -67,7 +67,7 @@ flowchart TD
 
 ## 安装
 
-**手动（npm 发布前的主要路径）**
+**手动（从源码安装的备选路径）**
 
 ```bash
 # 1. 复制到 profile 的 node_modules
@@ -87,9 +87,13 @@ mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node
 # 同样把 "dsh-preset-deep" 加进 dsh.profile.bundles，然后重启
 ```
 
-**npm（尚未发布）**
+**npm（推荐，0.1.2 起）**
 
-> 这个包还没发到 npm，`dsh plugin add dsh-preset-deep` 现在会失败。发布后本条即生效。
+```bash
+dsh plugin add dsh-preset-deep
+```
+
+> 装完重启 Harness，新开会话选「梁圣模式」。在 DSH 0.2.2-alpha.2 上实测；`dsh plugin add` 会自动把这个包写进 profile 的 `dsh.profile.bundles`，不用手改。若报 workspace 错误，命令末尾加 `-w`。
 
 > 装之前先删掉 profile 的 `cordis.patch.yml` 里手写的那段 `preset-deep`，否则同名冲突。只删整段 preset 定义；如果你按「已知限制」给 `- id: preset-deep` 加过 `inject:` 顺序栅栏，保留那一条。
 

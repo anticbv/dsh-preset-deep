@@ -67,7 +67,7 @@ Three things worth noticing:
 
 ## Install
 
-**Manual (the main path until the npm release)**
+**Manual (alternative path from source)**
 
 ```bash
 # 1. copy into the profile's node_modules
@@ -87,9 +87,13 @@ mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node
 # then add "dsh-preset-deep" to dsh.profile.bundles and restart
 ```
 
-**npm (not published yet)**
+**npm (recommended, since 0.1.2)**
 
-> This package is not on npm yet, so `dsh plugin add dsh-preset-deep` will fail. This section takes effect once it is published.
+```bash
+dsh plugin add dsh-preset-deep
+```
+
+> Restart Harness after installing, then start a new session in "梁圣模式". Verified on DSH 0.2.2-alpha.2; `dsh plugin add` adds the package to the profile's `dsh.profile.bundles` automatically, no manual edit needed. If it reports a workspace error, append `-w`.
 
 > Remove any hand-written `preset-deep` block from the profile's `cordis.patch.yml` first, or the two collide. Remove only the full preset definition; if you added an `inject:` ordering fence on `- id: preset-deep` (see Known limitations), keep that row.
 
