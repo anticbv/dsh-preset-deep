@@ -20,3 +20,5 @@ jobs:
         run: node scripts/test-icon.cjs
       - name: Check acceptance-case markers
         run: node scripts/acceptance.cjs
+      - name: Prove the assertions bite (nine planted regressions)
+        run: node scripts/mutation.cjs

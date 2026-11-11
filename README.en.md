@@ -78,12 +78,12 @@ cp -r dsh-preset-deep ~/.dsh/profiles/<profile>/node_modules/
 # 3. restart the harness
 ```
 
-> Back up the profile's `package.json` and `cordis.patch.yml` before editing them — DSH replaces both files wholesale, it does not merge them.
+> Back up the profile's `package.json` before editing it — DSH neither merges nor rolls it back for you. `cordis.patch.yml` is a row-by-row overlay: a wrong row only fails to apply silently, and it still won't restore itself.
 
 **From the release tarball** (if you would rather not clone)
 
 ```bash
-# <version> follows package.json / the Release page (currently 0.1.3)
+# <version> follows package.json / the Release page (currently 0.1.4)
 tar -xzf dsh-preset-deep-<version>.tgz -C ~/.dsh/profiles/<profile>/node_modules/
 mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node_modules/dsh-preset-deep
 # then add "dsh-preset-deep" to dsh.profile.bundles and restart
@@ -100,19 +100,21 @@ dsh plugin --profile <profile> add dsh-preset-deep
 ```
 
 > `--profile` is required; omitting it reports `required option '--profile <name>' not specified` (`@deepseek-ai/dsh` 0.2.2-alpha.2, `lib/bin.js:117`). Restart Harness after installing, then start a new session in "梁圣模式". `dsh plugin add` adds the package to the profile's `dsh.profile.bundles` automatically, no manual edit needed. If it reports a workspace error, append `-w`.
+>
+> Before uninstalling, delete the `inject: [biliBasicCompactionPolicy]` row you added to `- id: preset-deep` in the profile's `cordis.patch.yml` — it is a locally written ordering fence, it does not disappear with the package, and it leaves the preset waiting on a service that is gone.
 
 > Remove any hand-written `preset-deep` block from the profile's `cordis.patch.yml` first, or the two collide. Remove only the full preset definition; if you added an `inject:` ordering fence on `- id: preset-deep` (see Known limitations), keep that row.
 
 ## Adapt the persona to your machine
 
-The persona lives in the `persona` row of `cordis.patch.yml`, and the published version **names no provider and no model**. To tighten it, rewrite that row — pin your preferred model, or make your own install delegate to free models automatically — then run `node scripts/validate.cjs`, which blocks regressions such as hard-coding someone else's provider.
+The persona lives in the `persona` row of `cordis.patch.yml`, and the published version **names no provider and no model**. To tighten it, rewrite that row — pin your preferred model, or make your own install delegate to free models automatically — then run `node scripts/validate.cjs`, which blocks regressions such as hard-coding someone else's provider or hollowing a persona section down to its keyword. The validator needs `js-yaml` (listed in `dependencies`); when copying the directory by hand without `node_modules`, run `npm i js-yaml@4.3.2` first.
 
 ## Examples
 
 | File | What it is |
 |---|---|
 | [`examples/allow-list.patch.yml`](examples/allow-list.patch.yml) | Fill-in template for the subagent allow-list, paste into the profile's `cordis.patch.yml` |
-| [`examples/acceptance.md`](examples/acceptance.md) | Acceptance run: eight automatic cases (A–D, F–I) plus one manual long-task case (E), each with material, pass line and failure signature |
+| [`examples/acceptance.md`](examples/acceptance.md) | Acceptance run: eight automatic cases (A–D, F–I) plus one manual long-task case (E), each with material, pass line and failure signature; `npm run acceptance` only checks the case markers, it does not run a model |
 
 ## Subagents
 
@@ -144,8 +146,9 @@ Without it, asking for another route fails with `child LLM route "<p>/<m>" is no
 ## Icon
 
 - Located by **label text** (`LABEL` at the top of `lib/client.js`), not by class name — DSH's class names are build hashes and change on upgrade.
-- The primary match is "the container's trimmed text equals `LABEL`"; if DSH ever swaps the icon implementation, `aria-label` / `title` are the fallback (they work even when the svg sits in a child node).
-- Debug with `window.__LS_ICON_STATUS__` in the console: `{plugin, label, size, tagged, at}`. `tagged: 0` means nothing matched.
+- Either signal matches: the container's trimmed text equals `LABEL`, or an `aria-label` / `title` **ends with** `LABEL` (the real header reads "选择模式: 梁圣模式", so an exact-equality match never fires). The matched svg itself gets `data-ls-svg`, and the CSS only targets that attribute — a badge inserted before the svg, or the svg nested inside a span, changes nothing.
+- Debug with `window.__LS_ICON_STATUS__` in the console: `{plugin, label, size, tagged, cssHit, at}`. `tagged: 0` means nothing matched; `cssHit` differing from `tagged` means the attribute landed but the style did not.
+- Plugin metadata: `exports` serves `./icon` (the same bytes as `assets/icon.png`) and `./locale/{zh,en}.json`, so a plugin manager can read the title, description and icon directly.
 - The mask paints with `currentColor`, so it follows light and dark themes.
 - Replace the image by swapping `assets/icon.png` and re-encoding it into `lib/client.js`; resize with `ICON_SIZE`.
 
@@ -153,11 +156,11 @@ Without it, asking for another route fails with `child LLM route "<p>/<m>" is no
 
 ```bash
 npm install          # js-yaml only — the validator needs it to parse the !!js tag
-npm test             # 70 structural assertions + 12 icon assertions
+npm test             # 92 structural assertions + 25 icon assertions + 10 mutation self-checks
 npm run acceptance   # acceptance-case markers (A–D, F–I)
 ```
 
-`scripts/validate.cjs` catches the regressions that matter: the preset rows or their order changed, a promise disappeared from the persona, someone hard-coded a foreign provider, `modelSelection` got turned off, `LABEL` drifted from `config.name`, or `package.json` grew an `engines.dsh`. CI: `.github/workflows/validate.yml` runs validate, test-icon and acceptance on every push and PR. If the push token lacks `workflow` scope, GitHub refuses that file over the API — push it with a scoped token instead; `ci/validate.yml` keeps the same config for local or third-party CI.
+`scripts/validate.cjs` catches the regressions that matter: the preset rows or their order changed, a persona section was hollowed down to its keyword, the persona names a concrete model or hard-codes a foreign provider, the embedded icon no longer matches `assets/icon.png` byte for byte, the package name and the client factory id disagree, the lockfile version drifts from `package.json`, `modelSelection` got turned off, `LABEL` drifted from `config.name`, or `package.json` grew an `engines.dsh`. `scripts/mutation.cjs` then plants nine real regressions into a temporary copy and proves each one actually goes red — assertions, not decoration. CI: `.github/workflows/validate.yml` runs validate, test-icon, mutation and acceptance on every push and PR. If the push token lacks `workflow` scope, GitHub refuses that file over the API — push it with a scoped token instead; `ci/validate.yml` keeps the same config for local or third-party CI.
 
 ## Known limitations
 
@@ -200,7 +203,7 @@ That is the first version whose `@deepseek-ai/dsh-web-app` `ptc` preset ships `t
 | `0.2.2-alpha.2` — `0.2.2-rc.1` | ⚠️ Partially tested (alpha.2: profile composition, web boot and client bundle load + style injection all pass; the start page has no preset switcher, so icon tagging was not triggered. rc.1 is the daily driver) |
 | `≤ 0.2.1` | ⚠️ The bundle still loads, but `tool-executor-ptc` cannot be resolved and the mode card may show as broken |
 
-This repo's `cordis.patch.yml` is derived from the official `0.2.2-rc.1` `presets/ptc.patch.yml`: two delegation rows removed, persona and plan-mode replaced.
+This repo's `cordis.patch.yml` is derived from the official `0.2.2-rc.1` `presets/ptc.patch.yml`: two delegation entries removed (7 rows in total), persona and plan-mode replaced, and one top-level `ls-icon` row added.
 
 **One deliberate difference from upstream**: the persona does not interpolate `{{model}}` (upstream uses that placeholder). `validate.cjs` therefore forbids `{{` in the persona — a choice, not a bug; switching to the template form means relaxing that assertion too.
 
@@ -210,4 +213,4 @@ To force an install on another version, grant an **exact-version** exemption in 
 
 Dual-licensed under **MIT** or **Apache-2.0**, at your option.
 
-The preset structure derives from the harness's own `ptc` preset (MIT).
+The preset structure derives from the harness's own `ptc` preset (MIT); upstream copyright and the full licence text are in [`NOTICE`](NOTICE).

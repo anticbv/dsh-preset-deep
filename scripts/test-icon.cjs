@@ -10,6 +10,7 @@ const root = path.resolve(__dirname, "..");
 const code = fs.readFileSync(path.join(root, "lib", "client.js"), "utf8");
 
 const styleTags = [];
+const all = [];
 
 function attrs() {
   const map = new Map();
@@ -21,66 +22,93 @@ function attrs() {
   };
 }
 
-function svg(parent) {
-  return { tagName: "svg", parentElement: parent, children: [], ...attrs() };
-}
-
 function findSvg(el) {
   const kids = el.children || [];
   for (let i = 0; i < kids.length; i += 1) {
-    if (kids[i] && kids[i].tagName === "svg") return kids[i];
+    if (!kids[i]) continue;
+    if (kids[i].tagName === "svg") return kids[i];
     const nested = findSvg(kids[i]);
     if (nested) return nested;
   }
   return null;
 }
 
-function host(text, extra) {
-  const el = { textContent: text, children: [], ...attrs(), ...(extra || {}) };
-  const icon = svg(el);
-  el.children.push(icon);
-  el.icon = icon;
+function mk(tagName, parent, extra) {
+  const el = { tagName, parentElement: parent || null, children: [], textContent: "", ...attrs(), ...(extra || {}) };
   el.querySelector = (sel) => (sel === "svg" ? findSvg(el) : null);
+  all.push(el);
+  if (parent) parent.children.push(el);
+  return el;
+}
+
+// 真实 DOM 的形状：容器里 图标 svg + 文字 span（+ 可选的下拉箭头 svg）
+function seat(text, opts) {
+  const el = mk("div", null);
+  Object.keys(opts || {}).forEach((k) => el.setAttribute(k, opts[k]));
+  el.textContent = text;
+  el.icon = mk("svg", el);
+  mk("span", el, { textContent: text });
   return el;
 }
 
 // 孙节点：宿主 -> span -> svg，外层靠 aria-label 才认得出
-function nestedHost(text, extra) {
-  const el = { textContent: text, children: [], ...attrs(), ...(extra || {}) };
-  const wrap = { tagName: "span", parentElement: el, children: [], ...attrs() };
-  const icon = svg(wrap);
-  wrap.children.push(icon);
-  el.children.push(wrap);
-  el.icon = icon;
-  el.querySelector = (sel) => (sel === "svg" ? icon : null);
+function nestedSeat(label) {
+  const el = mk("div", null);
+  el.setAttribute("aria-label", label);
+  const wrap = mk("span", el);
+  el.icon = mk("svg", wrap);
   return el;
 }
 
-// 容器里除了图标 svg 还有第二支 svg（alpha.2 的下拉箭头），只能遮罩第一支
-function twoSvgHost(text) {
-  const el = host(text);
-  el.children.push(svg(el));
-  return el;
-}
+const deep = seat("梁圣模式");
+const withChevron = seat("梁圣模式");
+const chevron = mk("svg", withChevron);
+const standard = seat("标准模式");
+// 真实头部的 aria-label 是「选择模式: 梁圣模式」，不是整串相等
+const ariaOnly = seat("", { "aria-label": "选择模式: 梁圣模式" });
+const nested = nestedSeat("选择模式: 梁圣模式");
+// 图标前面被插了一个 badge：svg 不再是第一个元素子节点
+const badgeBefore = mk("div", null);
+badgeBefore.textContent = "梁圣模式";
+mk("span", badgeBefore, { textContent: "NEW" });
+badgeBefore.icon = mk("svg", badgeBefore);
 
-// 五种情况：正常命中 / 不该命中 / 只有 aria-label / svg 藏在孙节点 / 带箭头
-const deep = host("梁圣模式");
-const withChevron = twoSvgHost("梁圣模式");
-const standard = host("标准模式");
-const ariaOnly = host("", { "aria-label": "梁圣模式" });
-ariaOnly.textContent = "";
-const nested = nestedHost("", { "aria-label": "梁圣模式" });
+const observers = [];
+class FakeObserver {
+  constructor(cb) {
+    this.cb = cb;
+    this.disconnected = false;
+    observers.push(this);
+  }
+  observe(el, options) {
+    this.options = options;
+  }
+  disconnect() {
+    this.disconnected = true;
+  }
+}
 
 const document = {
-  body: {},
+  body: mk("body", null),
   head: { appendChild: (t) => styleTags.push(t) },
-  querySelectorAll: (sel) => {
-    if (sel === "svg") return [deep.icon, standard.icon, ariaOnly.icon, nested.icon, withChevron.icon];
-    if (sel.includes("aria-label")) return [ariaOnly, nested];
+  querySelectorAll(sel) {
+    if (sel === "svg") return all.filter((e) => e.tagName === "svg");
+    if (sel === "[data-ls-svg]") return all.filter((e) => e.hasAttribute("data-ls-svg"));
+    if (sel === "[aria-label], [title]") return all.filter((e) => e.hasAttribute("aria-label") || e.hasAttribute("title"));
+    if (sel === "style[data-ls-icon-style]") return styleTags.filter((t) => t.hasAttribute("data-ls-icon-style"));
     return [];
   },
-  querySelector: (sel) => (sel.includes("data-ls-icon-style") ? styleTags[0] || null : null),
-  createElement: () => ({ tag: "style", textContent: "", ...attrs() }),
+  querySelector(sel) {
+    return this.querySelectorAll(sel)[0] || null;
+  },
+  createElement() {
+    const tag = mk("style", null);
+    tag.remove = () => {
+      const i = styleTags.indexOf(tag);
+      if (i >= 0) styleTags.splice(i, 1);
+    };
+    return tag;
+  },
   addEventListener: () => {},
 };
 
@@ -93,7 +121,7 @@ const window = {
 vm.runInContext(code, vm.createContext({
   window,
   document,
-  MutationObserver: class { observe() {} },
+  MutationObserver: FakeObserver,
   console,
   requestAnimationFrame: window.requestAnimationFrame,
 }), { filename: "client.js" });
@@ -109,19 +137,46 @@ const checks = [
   ["样式只注入一次", styleTags.length === 1],
   ["样式含遮罩图", css.includes("data:image/png;base64,")],
   ["命中目标模式", deep.hasAttribute("data-ls-icon")],
-  ["其他模式没被改", !standard.hasAttribute("data-ls-icon")],
-  ["aria-label 兜底生效", ariaOnly.hasAttribute("data-ls-icon")],
-  ["孙节点兜底生效", nested.hasAttribute("data-ls-icon")],
-  ["CSS 只遮罩首支 svg", css.includes("[data-ls-icon] svg:first-child {") && !css.includes("[data-ls-icon] svg {")],
-  ["隐藏原内容也只作用于首支", css.includes("[data-ls-icon] svg:first-child > * { visibility: hidden; }")],
+  ["命中的 svg 自己带标记", deep.icon.hasAttribute("data-ls-svg")],
+  ["其他模式没被改", !standard.hasAttribute("data-ls-icon") && !standard.icon.hasAttribute("data-ls-svg")],
+  ["aria-label 前缀兜底生效", ariaOnly.hasAttribute("data-ls-icon") && ariaOnly.icon.hasAttribute("data-ls-svg")],
+  ["孙节点兜底生效", nested.hasAttribute("data-ls-icon") && nested.icon.hasAttribute("data-ls-svg")],
+  ["svg 前插 badge 仍能命中", badgeBefore.hasAttribute("data-ls-icon") && badgeBefore.icon.hasAttribute("data-ls-svg")],
+  ["CSS 不再依赖结构选择器", css.includes("[data-ls-svg] {") && !css.includes("svg:first-child")],
+  ["隐藏原内容只作用于被标记的 svg", css.includes("[data-ls-svg] > * { visibility: hidden; }")],
   ["带箭头的容器照样打标", withChevron.hasAttribute("data-ls-icon")],
-  ["探针记录命中数", status.tagged === 4],
+  ["箭头 svg 不被遮罩", !chevron.hasAttribute("data-ls-svg")],
+  ["探针记录命中数", status.tagged === 5],
+  ["探针记录 CSS 命中数", status.cssHit === 5],
+  ["observer 监听参数已收窄", Boolean(observers[0]) && observers[0].options.childList === true && observers[0].options.characterData !== true],
 ];
+
+// 注销：把自己留下的 style / 标记 / 探针全部带走
+let cleanup = null;
+mod.apply({ effect(fn) { cleanup = fn(); } });
+const disconnectedBefore = observers[0].disconnected;
+if (typeof cleanup === "function") cleanup();
+checks.push(
+  ["ctx.effect 注册了注销函数", typeof cleanup === "function"],
+  ["注销时断开 observer", disconnectedBefore === false && observers[0].disconnected === true],
+  ["注销时移除 style 标签", styleTags.length === 0],
+  ["注销时清掉容器标记", !deep.hasAttribute("data-ls-icon")],
+  ["注销时清掉 svg 标记", !deep.icon.hasAttribute("data-ls-svg")],
+  ["注销时清掉探针", window.__LS_ICON_STATUS__ === undefined]
+);
+
+// 注销后再次 apply 应当自愈
+mod.apply({});
+const status2 = window.__LS_ICON_STATUS__ || {};
+checks.push(
+  ["再次 apply 会重新注入样式", styleTags.length === 1],
+  ["再次 apply 会重新打标", status2.tagged === 5]
+);
 
 let failed = 0;
 for (const [name, pass] of checks) {
-  console.log(`${pass ? "  ok" : "FAIL"}  ${name}`);
+  console.log((pass ? "  ok  " : "FAIL  ") + name);
   if (!pass) failed += 1;
 }
-console.log(`\n${checks.length - failed} passed, ${failed} failed`);
+console.log("\n" + (checks.length - failed) + " passed, " + failed + " failed");
 process.exit(failed ? 1 : 0);

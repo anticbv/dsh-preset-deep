@@ -16,7 +16,13 @@ function check(name, cond, detail) {
 }
 
 // Harness 的 Loader 用 js-yaml，并把 !!js 当作自定义标量类型（见 @deepseek-ai/dsh-app-boot）。
-const yaml = require("js-yaml");
+let yaml;
+try {
+  yaml = require("js-yaml");
+} catch (error) {
+  console.error("FAIL  js-yaml 未安装。发布包把它列为 dependencies；手工复制目录时先跑 npm i js-yaml@4.3.2。");
+  process.exit(2);
+}
 const JsTag = new yaml.Type("tag:yaml.org,2002:js", {
   kind: "scalar",
   resolve: (data) => typeof data === "string",
@@ -96,6 +102,19 @@ if (doc) {
       }
       check("persona 不含未注册的 {{…}} 模板变量", !/\{\{/.test(prefix), "persona 是原样注入的，没有插值");
       check("persona 里没有写死别人的 provider", !/our-free-model|Kilo Nemotron|deepseek-flash/.test(prefix));
+      check(
+        "persona 不点名任何具体模型或供应商",
+        !/(openai|anthropic|google|mistral|groq|xai)\b|gpt-[0-9]|claude-|gemini-|deepseek-(?:chat|flash|v[0-9])|nemotron/i.test(prefix)
+      );
+      // 关键词断言拦不住"只剩标题"的改写：每个加粗小节都得有实质正文。
+      const sections = prefix.split(/\n(?=\s*\*\*)/).filter((chunk) => /^\s*\*\*/.test(chunk));
+      check("persona 有 8 个加粗小节", sections.length === 8, "实际 " + sections.length);
+      for (const chunk of sections) {
+        const title = (/^\s*\*\*([^*]+)\*\*/.exec(chunk) || [, "?"])[1];
+        const body = chunk.replace(/^\s*\*\*[^*]+\*\*/, "").replace(/\s/g, "");
+        check("persona 小节「" + title + "」有实质正文", body.length >= 25, "正文 " + body.length + " 字");
+      }
+      check("persona 总长度 ≥ 1200", prefix.trim().length >= 1200, "实际 " + prefix.trim().length);
 check("persona 不把「派子代理」当默认动作", !/机械活[^。]*派子 agent 去做/.test(prefix));
 check("persona 要求子代理须经用户明确要求", /明确要求/.test(prefix));
     }
@@ -124,7 +143,16 @@ check("persona 要求子代理须经用户明确要求", /明确要求/.test(pre
     const label = matchConst(client, "LABEL");
     check("client.js 有 LABEL 常量", typeof label === "string");
     check("LABEL 与 preset 的 config.name 一致", label === cfg.name, `LABEL=${label} name=${cfg.name}`);
-    check("client.js 内嵌了图标（base64 PNG）", /data:image\/png;base64,[A-Za-z0-9+/=]{100,}/.test(client));
+    const embeddedMatch = /data:image\/png;base64,([A-Za-z0-9+/=]{100,})/.exec(client);
+    const embedded = embeddedMatch ? Buffer.from(embeddedMatch[1], "base64") : Buffer.alloc(0);
+    const embeddedInfo = pngInfo(embedded);
+    check("client.js 内嵌了真 PNG", Boolean(embeddedInfo), "魔数或 IHDR 不对");
+    if (embeddedInfo) {
+      check("内嵌图标是正方形且 ≥ 48px", embeddedInfo.width === embeddedInfo.height && embeddedInfo.width >= 48, embeddedInfo.width + "x" + embeddedInfo.height);
+    }
+    const assetBytes = fs.readFileSync(path.join(root, "assets", "icon.png"));
+    check("内嵌图标与 assets/icon.png 逐字节一致", embedded.length > 0 && embedded.equals(assetBytes));
+    check("assets/icon.png 也是真 PNG", Boolean(pngInfo(assetBytes)));
     check("ICON_SIZE 是 px 值", /^\d+px$/.test(matchConst(client, "ICON_SIZE") || ""));
   }
 
@@ -149,6 +177,40 @@ check("package.json 声明了 dsh.bundle.patch", Boolean(pkg.dsh && pkg.dsh.bund
 check("package.json 声明了 dsh.client", Boolean(pkg.dsh && pkg.dsh.client));
 check("没有版本门（刻意）", !(pkg.engines && pkg.engines.dsh), "engines.dsh 会让不满足的版本整条跳过");
 check("license 为双许可", pkg.license === "MIT OR Apache-2.0", String(pkg.license));
+const clientText = fs.readFileSync(path.join(root, "lib", "client.js"), "utf8");
+check(
+  "包名与客户端工厂 id 一致",
+  pkg.name === "dsh-preset-deep" && new RegExp('__ModuleLoader__\\.load\\(\\{\\s*id:\\s*"' + pkg.name + '"').test(clientText),
+  String(pkg.name)
+);
+check("js-yaml 在 dependencies 里（发布包内 validate 才能跑）", Boolean(pkg.dependencies && pkg.dependencies["js-yaml"]));
+const lockFile = path.join(root, "package-lock.json");
+if (fs.existsSync(lockFile)) {
+  const lock = JSON.parse(fs.readFileSync(lockFile, "utf8"));
+  check(
+    "package-lock 的版本与 package.json 一致",
+    lock.version === pkg.version && (!lock.packages || !lock.packages[""] || lock.packages[""].version === pkg.version),
+    "lock " + lock.version + " vs pkg " + pkg.version
+  );
+}
+check("exports 暴露 ./icon 与 ./locale/*.json", Boolean(pkg.exports && pkg.exports["./icon"] && pkg.exports["./locale/*.json"]));
+const iconExport = pkg.exports && pkg.exports["./icon"];
+check("exports[\"./icon\"] 指向存在的文件", typeof iconExport === "string" && fs.existsSync(path.join(root, iconExport.replace(/^\.\//, ""))));
+check("files 收录 locale 与 NOTICE", Array.isArray(pkg.files) && pkg.files.includes("locale") && pkg.files.includes("NOTICE"));
+for (const locale of ["en", "zh"]) {
+  const file = path.join(root, "locale", locale + ".json");
+  let meta = null;
+  try {
+    meta = JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch (error) {
+    check("locale/" + locale + ".json 可解析", false, error.message);
+    continue;
+  }
+  check(
+    "locale/" + locale + ".json 有 title 与 description",
+    Boolean(meta.meta && typeof meta.meta.title === "string" && meta.meta.title && typeof meta.meta.description === "string" && meta.meta.description)
+  );
+}
 
 // 包内技能的打包结构：清单、frontmatter、目录名与 name 一致，且 lib/index.js 真的注册它。
 const skillFile = path.join(root, "skills", "long-task", "SKILL.md");
@@ -167,11 +229,19 @@ if (fs.existsSync(skillFile)) {
   }
   check("SKILL.md 的 name 是 long-task", fields.name === "long-task", String(fields.name));
   check("SKILL.md 的 description 写明触发症状", typeof fields.description === "string" && fields.description.length > 20 && fields.description.length <= 500, String(fields.description).length);
-  check("SKILL.md 正文非空", Boolean(parsed && parsed[2].trim()));
+  check("SKILL.md 正文有实质内容", Boolean(parsed) && parsed[2].replace(/\s/g, "").length >= 400, parsed ? parsed[2].replace(/\s/g, "").length + " 字" : "无正文");
 }
 const hostHalf = fs.readFileSync(path.join(root, "lib", "index.js"), "utf8");
 check("lib/index.js 注册 skills provider", hostHalf.includes("registerProvider"));
 check("lib/index.js 声明 inject skills", /inject = \["skills"\]/.test(hostHalf));
+
+function pngInfo(buf) {
+  if (!buf || buf.length < 33) return null;
+  const magic = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  for (let i = 0; i < magic.length; i += 1) if (buf[i] !== magic[i]) return null;
+  if (buf.toString("ascii", 12, 16) !== "IHDR") return null;
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+}
 
 function prefixed(v) {
   return typeof v === "string" ? v : undefined;

@@ -2,6 +2,26 @@
 
 版本号遵循 SemVer；每个版本对应一个 GitHub Release 与附注 tag。
 
+## 0.1.4 — 2026-11-11
+
+按外部审核的 N1–N11 逐条收口。没有新增功能，全部是「让声称和证据对上」。
+
+- **图标命中判据**（N1/N2）：真实头部是 `aria-label="选择模式: 梁圣模式"`，整串相等永远不中。现在两个信号任一命中：容器文字整串等于 `LABEL`，或 `aria-label`/`title` **以** `LABEL` **结尾**。命中的 svg 自己打 `data-ls-svg`，CSS 只认这个属性——svg 前插 badge、或 svg 包在 span 里都不再影响遮罩，兄弟 svg（下拉箭头）也不会被误伤。
+- **生命周期**（N5）：`stop()` 现在断开 observer、摘掉两类属性、删掉注入的 `style`、清掉 `__LS_ICON_STATUS__`；`observer` 收窄为 `{childList, subtree}`（去掉 `characterData` 这个必然误触发的选项）。
+- **探针**（N5）：`__LS_ICON_STATUS__` 增 `cssHit`，用来区分「属性打上了」和「样式生效了」。
+- **发布包可跑校验**（N3）：`js-yaml` 从 `devDependencies` 移到 `dependencies`（`^4.3.2`）；`validate.cjs` 缺包时打印安装提示并以 2 退出，不再是裸 `Cannot find module`。
+- **不依赖用户侧 AGENTS.md**（N4）：persona 里三处外部引用改为自包含——哈希规则、检查点字段、`[未知]` 等级都在 preset 内写明；用户侧的 AGENTS.md 只作补充。
+- **许可证归属**（N7）：新增 `NOTICE`，收录上游 `@deepseek-ai/dsh-web-app` `0.2.2-rc.1` 的 MIT 全文与版权行；README 与 CHANGELOG 同步指认派生来源。
+- **插件元数据**（N8）：`exports` 暴露 `./icon`（即 `assets/icon.png`）与 `./locale/{zh,en}.json`，插件管理器可直接取标题、描述与图标；`files` 收录 `locale` 与 `NOTICE`。
+- **宿主防御**（N10）：`apply(ctx)` 在 `ctx.skills.registerProvider` 缺席时记一条 warn 后返回，不再抛 `TypeError` 把整条插件行带崩。
+- **卸载说明**（N11）：安装段补「卸载前先删掉本地手写的 `inject: [biliBasicCompactionPolicy]` 栅栏」，并更正「DSH 整体替换两个文件」的说法（`package.json` 不合并；`cordis.patch.yml` 是逐条叠加层）。
+- **验收脚本**（N9④）：`acceptance.cjs` 的 `passed` 计数改为真实累加，出现未预期 id 时不再打印负数。
+- **文档口径**（N9①/②/⑥/⑦）：`cordis.patch.yml` 与官方 ptc 的差异改述为「去掉 delegation 两个条目（共 7 行）+ 顶层加 `ls-icon`」；`npm run acceptance` 注明只校验题面标记；0.1.2 条的 CSS 写法改为当时的实际值。
+- **校验**（N1 的执行面）：`validate.cjs` 从 70 条扩到 **92 条**——persona 8 个小节、每节 ≥25 字、总长 ≥1200；通用 provider 黑名单（`openai`/`anthropic`/`gpt-`/`claude-`/`gemini-`/`deepseek-chat`/`nemotron` 等）；内嵌图标与 `assets/icon.png` 逐字节一致（PNG 魔数、IHDR、正方形 ≥48px）；包名与客户端工厂 id 一致；`package-lock` 版本同步；`exports`/`files`/`locale` 自洽。
+- **变异自检**：新增 `scripts/mutation.cjs`，把九类真实回归（persona 只剩关键词、写死 `openai/gpt-4o`、内嵌图标被换、`icon.png` 被截断、技能正文被掏空、包名漂移、persona 插 `{{model}}`、CSS 退回 `:first-child`、删掉 `tool-executor-ptc` 两行）逐个植进临时副本，确认 `validate` 或 `test-icon` 真的会红 → **10 passed**（含正对照）。
+- **图标测试**：`test-icon.cjs` 重写为 25 条断言，覆盖「箭头 svg 不被遮罩」「svg 包在 span 里」「aria-label 以 LABEL 结尾」「注销时清理干净」「再 apply 能自愈」。
+- CI 增加 `npm run mutation`。
+
 ## 0.1.3 — 2026-11-11
 
 文档修复：npm 安装命令此前少写 `--profile`，照抄必失败。
@@ -26,7 +46,7 @@
 校验层、图标、CI 与文档的一轮收口。
 
 - 校验：新增 `scripts/preset-baseline.json`（30 组展平行的 id + 包名 + 顺序），`validate.cjs` 增加「与基准一致」「tool-executor-ptc 包名正确」两条断言；改名、换序现在会红（此前只拦删整行）。
-- 图标：tag 兜底改用 `querySelector("svg")`，CSS 改为后代选择器 `[data-ls-icon] svg`；svg 藏在子节点时也能命中，且兜底与样式不再脱节。
+- 图标：tag 兜底改用 `querySelector("svg")`，CSS 改为 `[data-ls-icon] svg:first-child`（后代选择器 + `:first-child`，0.1.4 起由 `[data-ls-svg]` 取代）。
 - 生命周期：MutationObserver 改为模块级单例，`apply(ctx)` 支持 `ctx.effect` 注销；重复 apply 不再堆积 observer。
 - 导出：补 `"./package.json"`，修复 `createRequire(...).resolve("dsh-preset-deep/package.json")` 的 `ERR_PACKAGE_PATH_NOT_EXPORTED`。
 - 校验严格化：`matchConst` 锚定行首声明，注释里的同名赋值不再被误认成常量。
@@ -42,5 +62,5 @@
 
 ## 0.1.0 — 2026-11-07
 
-- 首个版本：以官方 `0.2.2-rc.1` 的 `ptc` preset 为底，去掉 delegation 两行、替换 persona 与 plan-mode。
+- 首个版本：以官方 `0.2.2-rc.1` 的 `ptc` preset 为底，去掉 delegation 的两个条目（共 7 行）、替换 persona 与 plan-mode。
 - 双许可 MIT OR Apache-2.0。

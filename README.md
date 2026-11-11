@@ -78,12 +78,12 @@ cp -r dsh-preset-deep ~/.dsh/profiles/<profile>/node_modules/
 # 3. 重启 Harness
 ```
 
-> 改 profile 的 `package.json` / `cordis.patch.yml` 前先备份这两个文件——DSH 对它们是整体替换，不是合并。
+> 改 profile 的 `package.json` 前先备份——DSH 不会替你合并或回滚它。`cordis.patch.yml` 是逐条叠加的补丁层：写错了只会让那一条静默不生效，同样不会自动复原。
 
 **从 release 的 tarball 安装**（不想 clone 的话）
 
 ```bash
-# <version> 以 package.json / Release 页为准（当前 0.1.3）
+# <version> 以 package.json / Release 页为准（当前 0.1.4）
 tar -xzf dsh-preset-deep-<version>.tgz -C ~/.dsh/profiles/<profile>/node_modules/
 mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node_modules/dsh-preset-deep
 # 同样把 "dsh-preset-deep" 加进 dsh.profile.bundles，然后重启
@@ -100,19 +100,21 @@ dsh plugin --profile <profile> add dsh-preset-deep
 ```
 
 > `--profile` 不能省，漏了会报 `required option '--profile <name>' not specified`（`@deepseek-ai/dsh` 0.2.2-alpha.2 的 `lib/bin.js:117`）。装完重启 Harness，新开会话选「梁圣模式」。`dsh plugin add` 会自动把这个包写进 profile 的 `dsh.profile.bundles`，不用手改。若报 workspace 错误，命令末尾加 `-w`。
+>
+> 卸载前先把 profile `cordis.patch.yml` 里给 `- id: preset-deep` 加的那条 `inject: [biliBasicCompactionPolicy]` 删掉——它是本地手写的顺序栅栏，不随插件一起卸载，留着会让 preset 等一个不再存在的服务。
 
 > 装之前先删掉 profile 的 `cordis.patch.yml` 里手写的那段 `preset-deep`，否则同名冲突。只删整段 preset 定义；如果你按「已知限制」给 `- id: preset-deep` 加过 `inject:` 顺序栅栏，保留那一条。
 
 ## 按你的环境改写 persona
 
-persona 在 `cordis.patch.yml` 的 `persona` 行里，发布版**不点名任何 provider 或模型**。想收紧就改那一行，例如把首选模型写死成你自己常用的那条、或让它在本机自动派免费模型；改完跑一次 `node scripts/validate.cjs`——它会拦住「persona 里写死了别人的 provider」这类回退。
+persona 在 `cordis.patch.yml` 的 `persona` 行里，发布版**不点名任何 provider 或模型**。想收紧就改那一行，例如把首选模型写死成你自己常用的那条、或让它在本机自动派免费模型；改完跑一次 `node scripts/validate.cjs`——它会拦住「persona 里写死了别人的 provider」「某个小节被掏空成关键词」这类回退。校验器需要 `js-yaml`（已列在 `dependencies`）；手工复制目录、没有 `node_modules` 时先跑 `npm i js-yaml@4.3.2`。
 
 ## 示例
 
 | 文件 | 干什么 |
 |---|---|
 | [`examples/allow-list.patch.yml`](examples/allow-list.patch.yml) | 子代理白名单的填空模板，复制进 profile 的 `cordis.patch.yml` |
-| [`examples/acceptance.md`](examples/acceptance.md) | 验收清单：八道自动题（A–D、F–I）+ 一道人工长任务验收（E），各带素材、判据与失败签名 |
+| [`examples/acceptance.md`](examples/acceptance.md) | 验收清单：八道自动题（A–D、F–I）+ 一道人工长任务验收（E），各带素材、判据与失败签名；`npm run acceptance` 只校验题面标记，不跑模型 |
 
 ## 子代理
 
@@ -144,8 +146,9 @@ persona 在 `cordis.patch.yml` 的 `persona` 行里，发布版**不点名任何
 ## 图标
 
 - 定位靠**文字**（`lib/client.js` 顶部的 `LABEL`），不是类名——DSH 的类名是构建哈希，升级就变。
-- 主判据是"容器文字整串等于 `LABEL`"；万一 DSH 换了图标实现，还有 `aria-label` / `title` 兜底（svg 藏在子节点里也能命中）。
-- 排查用：控制台执行 `window.__LS_ICON_STATUS__`，能看到 `{plugin, label, size, tagged, at}`。`tagged: 0` 就是没定位到。
+- 两个信号任一命中即可：容器文字整串等于 `LABEL`，或 `aria-label` / `title` 以 `LABEL` 结尾（真实头部的写法是「选择模式: 梁圣模式」，整串相等永远不中）。命中的 svg 自己被打上 `data-ls-svg`，CSS 只认这个属性——宿主在 svg 前插 badge、或把 svg 包进 span，都不影响命中。
+- 排查用：控制台执行 `window.__LS_ICON_STATUS__`，能看到 `{plugin, label, size, tagged, cssHit, at}`。`tagged: 0` 是没定位到；`cssHit` 与 `tagged` 不相等说明属性打上了但样式没生效。
+- 插件元数据：`exports` 暴露 `./icon`（与 `assets/icon.png` 同一份）和 `./locale/{zh,en}.json`，插件管理器可直接取标题、描述与图标。
 - 遮罩用 `currentColor`，深浅主题自动跟随。
 - 换图：替换 `assets/icon.png` 并重新编码进 `lib/client.js`；改大小：改 `ICON_SIZE`。
 
@@ -153,11 +156,11 @@ persona 在 `cordis.patch.yml` 的 `persona` 行里，发布版**不点名任何
 
 ```bash
 npm install          # 只装 js-yaml（校验器解析 !!js 标签用）
-npm test             # 70 项结构断言 + 12 项图标断言
+npm test             # 92 项结构断言 + 25 项图标断言 + 10 项变异自检
 npm run acceptance   # 验收题标记完整性（A–D、F–I）
 ```
 
-`scripts/validate.cjs` 会拦住的回退包括：preset 行数/顺序变了、persona 少了承诺、persona 里写死别人的 provider、`modelSelection` 被关掉、`LABEL` 与 `config.name` 不一致、package.json 长出 `engines.dsh`。CI：`.github/workflows/validate.yml` 在每次 push / PR 上跑 validate + test-icon + acceptance 三条命令。推送账号若没有 `workflow` scope，GitHub 会拒绝通过 API 提交这个文件——换带 scope 的 token 重推；`ci/validate.yml` 保留同一份配置，便于本地或其它 CI 直接复用。
+`scripts/validate.cjs` 会拦住的回退包括：preset 行数/顺序变了、persona 某个小节被掏空成关键词、persona 点名具体模型或写死别人的 provider、内嵌图标与 `assets/icon.png` 不再逐字节一致、包名与客户端工厂 id 不一致、`package-lock` 与 `package.json` 版本漂移、`modelSelection` 被关掉、`LABEL` 与 `config.name` 不一致、package.json 长出 `engines.dsh`。`scripts/mutation.cjs` 再把九类真实回归逐个植进临时副本，确认它们真的会红——断言不是装饰品。CI：`.github/workflows/validate.yml` 在每次 push / PR 上跑 validate + test-icon + mutation + acceptance。推送账号若没有 `workflow` scope，GitHub 会拒绝通过 API 提交这个文件——换带 scope 的 token 重推；`ci/validate.yml` 保留同一份配置，便于本地或其它 CI 直接复用。
 
 ## 已知限制
 
@@ -200,7 +203,7 @@ jsdom 合成 DOM（约 5000 个 svg）、Node `v26.12.1`、同一台机器实测
 | `0.2.2-alpha.2` ～ `0.2.2-rc.1` | ⚠️ 部分实测（alpha.2：profile 合成、web 启动、客户端脚本加载并注入样式均通过；启动页没有预设切换器，图标打标未触发。rc.1 为日常运行环境） |
 | `≤ 0.2.1` | ⚠️ bundle 仍会装载，但 `tool-executor-ptc` 解析不到包，模式卡可能显示为异常/损坏 |
 
-本仓库的 `cordis.patch.yml` 与官方 `0.2.2-rc.1` 的 `presets/ptc.patch.yml` 同源——去掉 delegation 里两行、替换 persona 与 plan-mode 之后的产物。
+本仓库的 `cordis.patch.yml` 与官方 `0.2.2-rc.1` 的 `presets/ptc.patch.yml` 同源——去掉 delegation 里的两个条目（共 7 行）、替换 persona 与 plan-mode、并在顶层加一条 `ls-icon` 之后的产物。
 
 **与官方的一处有意差异**：persona 不做 `{{model}}` 插值（官方用 `{{model}}` 占位）。因此 `validate.cjs` 禁止 persona 出现 `{{`——这是选择，不是 bug；要改成模板写法，得同时放开断言。
 
@@ -210,4 +213,4 @@ jsdom 合成 DOM（约 5000 个 svg）、Node `v26.12.1`、同一台机器实测
 
 双许可：**MIT** 或 **Apache-2.0**，任选其一。
 
-preset 结构派生自 Harness 官方 `ptc` preset（MIT）。
+preset 结构派生自 Harness 官方 `ptc` preset（MIT）；上游版权与许可全文见 [`NOTICE`](NOTICE)。

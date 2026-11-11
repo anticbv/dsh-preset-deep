@@ -21,6 +21,7 @@ while ((m = re.exec(doc))) {
 
 const expected = ["A", "B", "C", "D", "F", "G", "H", "I"];
 const seen = new Set(cases.map((c) => c && c.id));
+let passed = 0;
 let failed = 0;
 for (const id of expected) {
   const c = cases.find((x) => x && x.id === id);
@@ -30,7 +31,8 @@ for (const id of expected) {
     continue;
   }
   const ok = typeof c.mode === "string" && c.mode.trim() && typeof c.pass === "string" && c.pass.trim();
-  if (!ok) failed += 1;
+  if (ok) passed += 1;
+  else failed += 1;
   console.log(id + (ok ? " PASS  结构化（mode=" + c.mode + "）" : " FAIL  mode/pass 缺失"));
 }
 for (const id of seen) {
@@ -39,5 +41,5 @@ for (const id of seen) {
     console.log(id + " FAIL  未预期的用例 id");
   }
 }
-console.log("\n" + (expected.length - failed) + " passed, " + failed + " failed（仅标记完整性；行为判定需人工）");
+console.log("\n" + passed + " passed, " + failed + " failed（仅标记完整性；行为判定需人工）");
 process.exitCode = failed ? 1 : 0;
