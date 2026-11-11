@@ -18,3 +18,5 @@ jobs:
         run: node scripts/validate.cjs
       - name: Test the icon half in a fake DOM
         run: node scripts/test-icon.cjs
+      - name: Check acceptance-case markers
+        run: node scripts/acceptance.cjs

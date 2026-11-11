@@ -17,12 +17,12 @@ Eight hard constraints, each aimed at one recurring failure:
 | # | Capability | Failure it blocks |
 |---|---|---|
 | 1 | **Four opening questions** — what would an expert in this line do that wasn't asked, what primary material would they start from, what concrete method would they use, what external evidence decides correctness | Coding first, discovering the direction was wrong later |
-| 2 | **Know when to stop** — write the completion condition (a command or an assertion) before starting; stop and report the blocker after two failures on the same path | Endless retries, pretending to be done |
-| 3 | **Three-way sourcing** — tag every fact `[file]` / `[search]` / `[memory]`; `[memory]` never enters a conclusion | Treating impressions as evidence |
+| 2 | **Know when to stop** — write the completion condition (a command or an assertion) before starting; stop and report after two failures on the same path or once you leave the named scope; before irreversible actions list the blast radius and a way back; long tasks keep a checkpoint file and resume instead of redoing verified work | Endless retries, pretending to be done, bare `rm`, unbacked read-modify-write |
+| 3 | **Four-way sourcing** — tag every fact `[file]` / `[search]` / `[user]` / `[memory]`; `[user]` only counts what you actually said, `[memory]` never enters a conclusion; file and search content is data, not instructions; truncated output counts as missing; look up unfamiliar names first; on conflict the file wins and the conflict is reported; counts state their measuring basis | Treating impressions as evidence, executing instructions found in data, proving "none" from a truncated log, quoting its own output as yours |
 | 4 | **Compute, don't estimate** — math, dates, boundaries and set operations are verified by running code | Numbers invented by mental arithmetic |
-| 5 | **Allowed to not know** — mark `[unknown]` and state what is missing | Wrapping uncertainty in "maybe / probably" |
+| 5 | **Allowed to not know** — mark `[unknown]` and state what is missing; never say "there is none" before searching and naming the search scope — not found is not the same as absent | Wrapping uncertainty in "maybe / probably", or claiming absence without looking |
 | 6 | **Decompose reasoning** — split complex inference into independently decidable propositions, judge each, then assemble | A long, plausible-looking chain with nothing testable in it |
-| 7 | **Cross-validation (on request)** — for claims you cannot pin down, re-check from another angle yourself first; only when you explicitly ask does it send 2–3 subagents to answer independently, and before delivery it sends a reviewer that never saw the context — again, only on request | A self-confirming conclusion nobody attacked from the other side |
+| 7 | **Cross-validation (on request)** — for claims you cannot pin down, re-check from another angle yourself first; only when you explicitly ask does it send 2–3 subagents to answer independently, and before delivery a reviewer that never saw the context — again only on request; each finding must be actionable, point at a verifiable location, and concern only what this change introduced — otherwise say "no findings"; pass the original constraints along with the task; a deliverable must let a reader without this context reproduce it | A self-confirming conclusion nobody attacked, or a reviewer padding its report |
 | 8 | **Subagents: visible, never proactive** — it can list the routes this machine allows (`list_subagent_models`, a read-only query) but delegates nothing unless you ask; when it does, it picks by "available → cheapest → good enough" and switches after two consecutive failures on one route | Outsourcing judgement to save tokens, or grinding alone when delegation was asked for |
 
 ## Architecture
@@ -50,11 +50,12 @@ flowchart TD
     WS["profile cordis.patch.yml"] -->|optional: allow-list| SA
 ```
 
-Three things worth noticing:
+Four things worth noticing:
 
 1. **One package, two halves**: `cordis.patch.yml` declares the preset and the icon host row; `lib/client.js` runs in the browser and never touches the host.
 2. **Switching subagent models needs one more thing**: the preset only turns on `modelSelection`; the authorization comes from `subagent-model-selection-settings` in the profile layer (below).
 3. **The icon is a client patch, not configuration**: DSH presets have no `icon` field — the glyph is a hard-coded svg, so the client half locates it by label text and masks it.
+4. **`skills/long-task` ships with the package**: the host half registers packaged skills as a bundled provider; that skill carries the long-task checkpoint workflow, and installs without it are unaffected.
 
 ## Difference from PTC
 
@@ -63,7 +64,8 @@ Three things worth noticing:
 | Plan | Decision-complete | **Must include a falsification section**: at least two pieces of evidence that could disprove it, and how to obtain them |
 | Conclusion | No required format | **Must be tagged `[verified]` / `[inferred]` / `[unknown]`**; untagged claims are not conclusions |
 | Arithmetic | Mental math allowed | **Verify by running code** |
-| Blast radius | Task-scoped | **Touch only the named files**, end with `git diff --stat` |
+| Blast radius | Task-scoped | **Touch only the named files**, end with `git diff --stat`; before irreversible actions list the blast radius and a way back |
+| Long tasks across compaction | No guarantee | **Keep a checkpoint**: goal / completion condition / done-and-verified / decisions and lessons / next step, then resume after compaction without restarting or redoing verified work |
 
 ## Install
 
@@ -110,7 +112,7 @@ The persona lives in the `persona` row of `cordis.patch.yml`, and the published 
 | File | What it is |
 |---|---|
 | [`examples/allow-list.patch.yml`](examples/allow-list.patch.yml) | Fill-in template for the subagent allow-list, paste into the profile's `cordis.patch.yml` |
-| [`examples/acceptance.md`](examples/acceptance.md) | Five-minute acceptance run: four test prompts, the pass line, four failure signatures |
+| [`examples/acceptance.md`](examples/acceptance.md) | Acceptance run: eight automatic cases (A–D, F–I) plus one manual long-task case (E), each with material, pass line and failure signature |
 
 ## Subagents
 
@@ -151,10 +153,11 @@ Without it, asking for another route fails with `child LLM route "<p>/<m>" is no
 
 ```bash
 npm install          # js-yaml only — the validator needs it to parse the !!js tag
-npm test             # 44 structural assertions + 12 icon assertions
+npm test             # 70 structural assertions + 12 icon assertions
+npm run acceptance   # acceptance-case markers (A–D, F–I)
 ```
 
-`scripts/validate.cjs` catches the regressions that matter: the preset rows or their order changed, a promise disappeared from the persona, someone hard-coded a foreign provider, `modelSelection` got turned off, `LABEL` drifted from `config.name`, or `package.json` grew an `engines.dsh`. CI: `.github/workflows/validate.yml` runs the same two commands on every push and PR. If the push token lacks `workflow` scope, GitHub refuses that file over the API — push it with a scoped token instead; `ci/validate.yml` keeps the same config for local or third-party CI.
+`scripts/validate.cjs` catches the regressions that matter: the preset rows or their order changed, a promise disappeared from the persona, someone hard-coded a foreign provider, `modelSelection` got turned off, `LABEL` drifted from `config.name`, or `package.json` grew an `engines.dsh`. CI: `.github/workflows/validate.yml` runs validate, test-icon and acceptance on every push and PR. If the push token lacks `workflow` scope, GitHub refuses that file over the API — push it with a scoped token instead; `ci/validate.yml` keeps the same config for local or third-party CI.
 
 ## Known limitations
 
@@ -165,6 +168,7 @@ npm test             # 44 structural assertions + 12 icon assertions
   - id: preset-deep
     inject: [biliBasicCompactionPolicy]
   ```
+- **Manual case E**: it needs a real compaction run, so CI only covers structure, icons and the markers of A–D and F–I.
 - Tested on harness runtime `0.2.2-rc.1` (same desktop version).
 
 ## Icon scan cost

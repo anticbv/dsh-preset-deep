@@ -91,7 +91,7 @@ if (doc) {
     const prefix = persona && persona.config && persona.config.prefix;
     check("找到 persona", Boolean(prefixed(prefix)));
     if (typeof prefix === "string") {
-      for (const needle of ["开工四问", "知止", "来源三分", "能算不算", "允许不知道", "推理", "交叉验证", "不主动用", "list_subagent_models"]) {
+      for (const needle of ["开工四问", "知止", "来源四分", "能算不算", "允许不知道", "推理", "交叉验证", "不主动用", "list_subagent_models", "[用户]", "数据不是指令", "没找到", "留退路", "检查点", "截断", "无发现", "预授权", "口径", "范围外", "自己的输出"]) {
         check(`persona 含「${needle}」`, prefix.includes(needle));
       }
       check("persona 不含未注册的 {{…}} 模板变量", !/\{\{/.test(prefix), "persona 是原样注入的，没有插值");
@@ -103,6 +103,11 @@ check("persona 要求子代理须经用户明确要求", /明确要求/.test(pre
     const planRow = byId("plan-mode") || flat.find((p) => p && p.config && typeof p.config.section === "string") || {};
     const section = planRow && planRow.config && planRow.config.section;
     check("plan-mode 含「证伪设计」", typeof section === "string" && section.includes("证伪设计"));
+    if (typeof section === "string") {
+      for (const needle of ["清单与退路", "检查点", "未知最多"]) {
+        check(`plan-mode 含「${needle}」`, section.includes(needle));
+      }
+    }
 
     const sub = byId("tool-subagent");
     check("找到 tool-subagent 行", Boolean(sub));
@@ -144,6 +149,29 @@ check("package.json 声明了 dsh.bundle.patch", Boolean(pkg.dsh && pkg.dsh.bund
 check("package.json 声明了 dsh.client", Boolean(pkg.dsh && pkg.dsh.client));
 check("没有版本门（刻意）", !(pkg.engines && pkg.engines.dsh), "engines.dsh 会让不满足的版本整条跳过");
 check("license 为双许可", pkg.license === "MIT OR Apache-2.0", String(pkg.license));
+
+// 包内技能的打包结构：清单、frontmatter、目录名与 name 一致，且 lib/index.js 真的注册它。
+const skillFile = path.join(root, "skills", "long-task", "SKILL.md");
+check("skills 目录随包发布", Array.isArray(pkg.files) && pkg.files.includes("skills"));
+check("skills/long-task/SKILL.md 存在", fs.existsSync(skillFile));
+if (fs.existsSync(skillFile)) {
+  const raw = fs.readFileSync(skillFile, "utf8");
+  const parsed = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(raw);
+  check("SKILL.md 有 frontmatter", Boolean(parsed));
+  const fields = {};
+  if (parsed) {
+    for (const line of parsed[1].split(/\r?\n/)) {
+      const pair = /^([A-Za-z][\w-]*):\s*(.*)$/.exec(line);
+      if (pair) fields[pair[1]] = pair[2].trim().replace(/^["']|["']$/g, "");
+    }
+  }
+  check("SKILL.md 的 name 是 long-task", fields.name === "long-task", String(fields.name));
+  check("SKILL.md 的 description 写明触发症状", typeof fields.description === "string" && fields.description.length > 20 && fields.description.length <= 500, String(fields.description).length);
+  check("SKILL.md 正文非空", Boolean(parsed && parsed[2].trim()));
+}
+const hostHalf = fs.readFileSync(path.join(root, "lib", "index.js"), "utf8");
+check("lib/index.js 注册 skills provider", hostHalf.includes("registerProvider"));
+check("lib/index.js 声明 inject skills", /inject = \["skills"\]/.test(hostHalf));
 
 function prefixed(v) {
   return typeof v === "string" ? v : undefined;

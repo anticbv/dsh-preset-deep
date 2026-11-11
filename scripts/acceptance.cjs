@@ -19,7 +19,7 @@ while ((m = re.exec(doc))) {
   }
 }
 
-const expected = ["T1", "T2", "T3", "T4"];
+const expected = ["A", "B", "C", "D", "F", "G", "H", "I"];
 const seen = new Set(cases.map((c) => c && c.id));
 let failed = 0;
 for (const id of expected) {
