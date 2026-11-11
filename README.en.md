@@ -147,7 +147,7 @@ Without it, asking for another route fails with `child LLM route "<p>/<m>" is no
 
 - Located by **label text** (`LABEL` at the top of `lib/client.js`), not by class name — DSH's class names are build hashes and change on upgrade.
 - Either signal matches: the container's trimmed text equals `LABEL`, or an `aria-label` / `title` **ends with** `LABEL` (the real header reads "选择模式: 梁圣模式", so an exact-equality match never fires). The matched svg itself gets `data-ls-svg`, and the CSS only targets that attribute — a badge inserted before the svg, or the svg nested inside a span, changes nothing.
-- Debug with `window.__LS_ICON_STATUS__` in the console: `{plugin, label, size, tagged, cssHit, at}`. `tagged: 0` means nothing matched; `cssHit` differing from `tagged` means the attribute landed but the style did not.
+- Debug with `window.__LS_ICON_STATUS__` in the console: `{plugin, label, size, tagged, at}`. `tagged: 0` means nothing matched; to check the style itself, run `getComputedStyle(svg).maskImage` — `none` means it did not apply.
 - Plugin metadata: `exports` serves `./icon` (the same bytes as `assets/icon.png`) and `./locale/{zh,en}.json`, so a plugin manager can read the title, description and icon directly.
 - The mask paints with `currentColor`, so it follows light and dark themes.
 - Replace the image by swapping `assets/icon.png` and re-encoding it into `lib/client.js`; resize with `ICON_SIZE`.
@@ -156,11 +156,11 @@ Without it, asking for another route fails with `child LLM route "<p>/<m>" is no
 
 ```bash
 npm install          # js-yaml only — the validator needs it to parse the !!js tag
-npm test             # 92 structural assertions + 25 icon assertions + 10 mutation self-checks
+npm test             # 93 structural assertions + 26 icon assertions + 11 mutation self-checks
 npm run acceptance   # acceptance-case markers (A–D, F–I)
 ```
 
-`scripts/validate.cjs` catches the regressions that matter: the preset rows or their order changed, a persona section was hollowed down to its keyword, the persona names a concrete model or hard-codes a foreign provider, the embedded icon no longer matches `assets/icon.png` byte for byte, the package name and the client factory id disagree, the lockfile version drifts from `package.json`, `modelSelection` got turned off, `LABEL` drifted from `config.name`, or `package.json` grew an `engines.dsh`. `scripts/mutation.cjs` then plants nine real regressions into a temporary copy and proves each one actually goes red — assertions, not decoration. CI: `.github/workflows/validate.yml` runs validate, test-icon, mutation and acceptance on every push and PR. If the push token lacks `workflow` scope, GitHub refuses that file over the API — push it with a scoped token instead; `ci/validate.yml` keeps the same config for local or third-party CI.
+`scripts/validate.cjs` catches the regressions that matter: the preset rows or their order changed, a persona section was hollowed down to its keyword, the persona names a concrete model or hard-codes a foreign provider, the embedded icon no longer matches `assets/icon.png` byte for byte, the package name and the client factory id disagree, the lockfile version drifts from `package.json`, `modelSelection` got turned off or the whole `tool-subagent` config block was deleted, `LABEL` drifted from `config.name`, or `package.json` grew an `engines.dsh`. `scripts/mutation.cjs` then plants ten real regressions into a temporary copy and proves each one actually goes red — assertions, not decoration. CI: `.github/workflows/validate.yml` runs validate, test-icon, mutation and acceptance on every push and PR. If the push token lacks `workflow` scope, GitHub refuses that file over the API — push it with a scoped token instead; `ci/validate.yml` keeps the same config for local or third-party CI.
 
 ## Known limitations
 

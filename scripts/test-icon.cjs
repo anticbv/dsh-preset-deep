@@ -11,6 +11,7 @@ const code = fs.readFileSync(path.join(root, "lib", "client.js"), "utf8");
 
 const styleTags = [];
 const all = [];
+const rafQueue = [];
 
 function attrs() {
   const map = new Map();
@@ -109,13 +110,22 @@ const document = {
     };
     return tag;
   },
-  addEventListener: () => {},
+  listeners: {},
+  addEventListener(name, fn) {
+    this.listeners[name] = fn;
+  },
+  removeEventListener(name) {
+    delete this.listeners[name];
+  },
 };
 
 let loaded = null;
 const window = {
   __ModuleLoader__: { load: (def) => { loaded = def; } },
-  requestAnimationFrame: (fn) => fn && fn(),
+  requestAnimationFrame: (fn) => {
+    rafQueue.push(fn);
+    return rafQueue.length;
+  },
 };
 
 vm.runInContext(code, vm.createContext({
@@ -147,7 +157,6 @@ const checks = [
   ["带箭头的容器照样打标", withChevron.hasAttribute("data-ls-icon")],
   ["箭头 svg 不被遮罩", !chevron.hasAttribute("data-ls-svg")],
   ["探针记录命中数", status.tagged === 5],
-  ["探针记录 CSS 命中数", status.cssHit === 5],
   ["observer 监听参数已收窄", Boolean(observers[0]) && observers[0].options.childList === true && observers[0].options.characterData !== true],
 ];
 
@@ -172,6 +181,29 @@ checks.push(
   ["再次 apply 会重新注入样式", styleTags.length === 1],
   ["再次 apply 会重新打标", status2.tagged === 5]
 );
+
+// 注销后仍在路上的工作（挂起 rAF / 迟到的 DOMContentLoaded）不得复活
+let rafCleanup = null;
+mod.apply({ effect(fn) { rafCleanup = fn(); } });
+const lastObserver = observers[observers.length - 1];
+if (lastObserver && typeof lastObserver.cb === "function") lastObserver.cb();
+if (typeof rafCleanup === "function") rafCleanup();
+while (rafQueue.length) rafQueue.shift()();
+checks.push([
+  "注销后挂起的 rAF 不会复活样式/标记/探针",
+  styleTags.length === 0 && window.__LS_ICON_STATUS__ === undefined && !deep.hasAttribute("data-ls-icon"),
+]);
+
+let lateCleanup = null;
+document.body = null;
+mod.apply({ effect(fn) { lateCleanup = fn(); } });
+const readyHandler = document.listeners.DOMContentLoaded;
+if (typeof lateCleanup === "function") lateCleanup();
+if (typeof readyHandler === "function") readyHandler();
+checks.push([
+  "注销后迟到的 DOMContentLoaded 不会重启",
+  styleTags.length === 0 && window.__LS_ICON_STATUS__ === undefined && !deep.hasAttribute("data-ls-icon") && document.listeners.DOMContentLoaded === undefined,
+]);
 
 let failed = 0;
 for (const [name, pass] of checks) {

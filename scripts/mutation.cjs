@@ -63,6 +63,21 @@ const mutations = [
   ["M7", "persona 引入未注册模板变量", (dir) => insertInPersona(dir, "模板 {{model}} 会被原样注入。")],
   ["M8", "图标 CSS 退回结构选择器", (dir) => edit(dir, "lib/client.js", (text) => text.replace('"[data-ls-svg] {",', '"[data-ls-icon] svg:first-child {",'))],
   ["M9", "删掉一行插件（行数变了）", (dir) => edit(dir, "cordis.patch.yml", (text) => text.replace("          - id: tool-executor-ptc\n            name: '@deepseek-ai/dsh-tool-executor-ptc'\n", ""))],
+  [
+    "M10",
+    "tool-subagent 的 config 块被整块删掉",
+    (dir) =>
+      edit(dir, "cordis.patch.yml", (text) => {
+        const block =
+          "                config:\n" +
+          "                  provider: spawn\n" +
+          "                  toolName: subagent\n" +
+          "                  modelSelection: true\n" +
+          "                  modelDiscovery: true\n";
+        if (!text.includes(block)) throw new Error("找不到 tool-subagent 的 config 块");
+        return text.replace(block, "");
+      }),
+  ],
 ];
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "dsh-preset-deep-mutation-"));

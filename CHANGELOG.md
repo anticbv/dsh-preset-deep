@@ -2,6 +2,15 @@
 
 版本号遵循 SemVer；每个版本对应一个 GitHub Release 与附注 tag。
 
+## 0.1.5 — 2026-11-11
+
+补掉 0.1.4 复核里的三处问题：断言没咬住、生命周期没收干净、探针自证。
+
+- **config 缺失不再放行**（validate）：`tool-subagent` 的 `config` 块整块被删时，原先两条断言被 `if (sub && sub.config)` 一起跳过（实测 90 passed、exit 0）。现在先断言 config 存在，再断言两个布尔；`mutation.cjs` 增加 M10 复现这一刀。（92 → **93 条**）
+- **注销后不再复活**（client）：`stop()` 置 `disposed`，`sync()`/`start()` 早退，`DOMContentLoaded` 改用具名 `onReady` 并在注销时移除监听。此前 apply 后立刻注销、再触发该事件会重建 style 与探针；挂起的 rAF 帧也会重新打标。
+- **删掉自证的 `cssHit`**：它数的是 sync 刚写的 `[data-ls-svg]`，与 `tagged` 恒等，无法证明样式生效。探针改为 `{plugin, label, size, tagged, at}`；判断样式请直接看 `getComputedStyle(svg).maskImage`。
+- `test-icon.cjs` 的假 rAF 改为队列，新增「注销后挂起的 rAF」与「注销后迟到的 DOMContentLoaded」两条断言（25 → **26 条**）；变异自检 10 → **11 passed**。
+
 ## 0.1.4 — 2026-11-11
 
 按外部审核的 N1–N11 逐条收口。没有新增功能，全部是「让声称和证据对上」。

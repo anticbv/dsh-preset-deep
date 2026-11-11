@@ -147,7 +147,7 @@ persona 在 `cordis.patch.yml` 的 `persona` 行里，发布版**不点名任何
 
 - 定位靠**文字**（`lib/client.js` 顶部的 `LABEL`），不是类名——DSH 的类名是构建哈希，升级就变。
 - 两个信号任一命中即可：容器文字整串等于 `LABEL`，或 `aria-label` / `title` 以 `LABEL` 结尾（真实头部的写法是「选择模式: 梁圣模式」，整串相等永远不中）。命中的 svg 自己被打上 `data-ls-svg`，CSS 只认这个属性——宿主在 svg 前插 badge、或把 svg 包进 span，都不影响命中。
-- 排查用：控制台执行 `window.__LS_ICON_STATUS__`，能看到 `{plugin, label, size, tagged, cssHit, at}`。`tagged: 0` 是没定位到；`cssHit` 与 `tagged` 不相等说明属性打上了但样式没生效。
+- 排查用：控制台执行 `window.__LS_ICON_STATUS__`，能看到 `{plugin, label, size, tagged, at}`。`tagged: 0` 是没定位到；要看样式是否真的生效，对该 svg 执行 `getComputedStyle(svg).maskImage`，`none` 即没生效。
 - 插件元数据：`exports` 暴露 `./icon`（与 `assets/icon.png` 同一份）和 `./locale/{zh,en}.json`，插件管理器可直接取标题、描述与图标。
 - 遮罩用 `currentColor`，深浅主题自动跟随。
 - 换图：替换 `assets/icon.png` 并重新编码进 `lib/client.js`；改大小：改 `ICON_SIZE`。
@@ -156,11 +156,11 @@ persona 在 `cordis.patch.yml` 的 `persona` 行里，发布版**不点名任何
 
 ```bash
 npm install          # 只装 js-yaml（校验器解析 !!js 标签用）
-npm test             # 92 项结构断言 + 25 项图标断言 + 10 项变异自检
+npm test             # 93 项结构断言 + 26 项图标断言 + 11 项变异自检
 npm run acceptance   # 验收题标记完整性（A–D、F–I）
 ```
 
-`scripts/validate.cjs` 会拦住的回退包括：preset 行数/顺序变了、persona 某个小节被掏空成关键词、persona 点名具体模型或写死别人的 provider、内嵌图标与 `assets/icon.png` 不再逐字节一致、包名与客户端工厂 id 不一致、`package-lock` 与 `package.json` 版本漂移、`modelSelection` 被关掉、`LABEL` 与 `config.name` 不一致、package.json 长出 `engines.dsh`。`scripts/mutation.cjs` 再把九类真实回归逐个植进临时副本，确认它们真的会红——断言不是装饰品。CI：`.github/workflows/validate.yml` 在每次 push / PR 上跑 validate + test-icon + mutation + acceptance。推送账号若没有 `workflow` scope，GitHub 会拒绝通过 API 提交这个文件——换带 scope 的 token 重推；`ci/validate.yml` 保留同一份配置，便于本地或其它 CI 直接复用。
+`scripts/validate.cjs` 会拦住的回退包括：preset 行数/顺序变了、persona 某个小节被掏空成关键词、persona 点名具体模型或写死别人的 provider、内嵌图标与 `assets/icon.png` 不再逐字节一致、包名与客户端工厂 id 不一致、`package-lock` 与 `package.json` 版本漂移、`modelSelection` 被关掉或 `tool-subagent` 的 `config` 块整块被删、`LABEL` 与 `config.name` 不一致、package.json 长出 `engines.dsh`。`scripts/mutation.cjs` 再把十类真实回归逐个植进临时副本，确认它们真的会红——断言不是装饰品。CI：`.github/workflows/validate.yml` 在每次 push / PR 上跑 validate + test-icon + mutation + acceptance。推送账号若没有 `workflow` scope，GitHub 会拒绝通过 API 提交这个文件——换带 scope 的 token 重推；`ci/validate.yml` 保留同一份配置，便于本地或其它 CI 直接复用。
 
 ## 已知限制
 

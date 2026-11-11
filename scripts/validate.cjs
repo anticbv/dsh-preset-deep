@@ -130,6 +130,7 @@ check("persona 要求子代理须经用户明确要求", /明确要求/.test(pre
 
     const sub = byId("tool-subagent");
     check("找到 tool-subagent 行", Boolean(sub));
+    check("tool-subagent 有 config 块", Boolean(sub && typeof sub.config === "object"), "整块缺失等于功能被静默关掉");
     if (sub && sub.config) {
       check("tool-subagent 开了 modelSelection", sub.config.modelSelection === true);
       check("tool-subagent 开了 modelDiscovery", sub.config.modelDiscovery === true);
