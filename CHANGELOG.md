@@ -2,6 +2,14 @@
 
 版本号遵循 SemVer；每个版本对应一个 GitHub Release 与附注 tag。
 
+## 0.1.3 — 2026-11-11
+
+文档修复：npm 安装命令此前少写 `--profile`，照抄必失败。
+
+- 安装段：`dsh plugin --profile <profile> add dsh-preset-deep`；补桌面版专用 CLI（npm 版 CLI 拒绝 desktop profile），路径写法为 `<安装目录>\resources\runtime\cli\bin\dsh.cmd`。中英两份 README 同步。
+- 校验：`validate.cjs` 新增 4 条断言——两份 README 的安装命令必须带 `--profile`，且不得出现裸 `dsh plugin add`（44 → 48 条）。
+- 依据：`@deepseek-ai/dsh@0.2.2-alpha.2` 的 `plugin` 子命令把 `--profile` 声明为 requiredOption（`lib/bin.js:117`），`rc.1` 同。
+
 ## 0.1.2 — 2026-11-07
 
 校验层、图标、CI 与文档的一轮收口。

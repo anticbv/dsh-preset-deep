@@ -81,7 +81,7 @@ cp -r dsh-preset-deep ~/.dsh/profiles/<profile>/node_modules/
 **From the release tarball** (if you would rather not clone)
 
 ```bash
-# <version> follows package.json / the Release page (currently 0.1.2)
+# <version> follows package.json / the Release page (currently 0.1.3)
 tar -xzf dsh-preset-deep-<version>.tgz -C ~/.dsh/profiles/<profile>/node_modules/
 mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node_modules/dsh-preset-deep
 # then add "dsh-preset-deep" to dsh.profile.bundles and restart
@@ -90,10 +90,14 @@ mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node
 **npm (recommended, since 0.1.2)**
 
 ```bash
-dsh plugin add dsh-preset-deep
+# globally installed @deepseek-ai/dsh: the plugin subcommand requires --profile
+dsh plugin --profile <profile> add dsh-preset-deep
+
+# Desktop: use the CLI bundled with the Desktop app (the npm CLI rejects the desktop profile)
+"<install dir>\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add dsh-preset-deep
 ```
 
-> Restart Harness after installing, then start a new session in "梁圣模式". Verified on DSH 0.2.2-alpha.2; `dsh plugin add` adds the package to the profile's `dsh.profile.bundles` automatically, no manual edit needed. If it reports a workspace error, append `-w`.
+> `--profile` is required; omitting it reports `required option '--profile <name>' not specified` (`@deepseek-ai/dsh` 0.2.2-alpha.2, `lib/bin.js:117`). Restart Harness after installing, then start a new session in "梁圣模式". `dsh plugin add` adds the package to the profile's `dsh.profile.bundles` automatically, no manual edit needed. If it reports a workspace error, append `-w`.
 
 > Remove any hand-written `preset-deep` block from the profile's `cordis.patch.yml` first, or the two collide. Remove only the full preset definition; if you added an `inject:` ordering fence on `- id: preset-deep` (see Known limitations), keep that row.
 

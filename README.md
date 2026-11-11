@@ -81,7 +81,7 @@ cp -r dsh-preset-deep ~/.dsh/profiles/<profile>/node_modules/
 **从 release 的 tarball 安装**（不想 clone 的话）
 
 ```bash
-# <version> 以 package.json / Release 页为准（当前 0.1.2）
+# <version> 以 package.json / Release 页为准（当前 0.1.3）
 tar -xzf dsh-preset-deep-<version>.tgz -C ~/.dsh/profiles/<profile>/node_modules/
 mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node_modules/dsh-preset-deep
 # 同样把 "dsh-preset-deep" 加进 dsh.profile.bundles，然后重启
@@ -90,10 +90,14 @@ mv ~/.dsh/profiles/<profile>/node_modules/package ~/.dsh/profiles/<profile>/node
 **npm（推荐，0.1.2 起）**
 
 ```bash
-dsh plugin add dsh-preset-deep
+# 全局安装的 @deepseek-ai/dsh：plugin 子命令必须带 --profile
+dsh plugin --profile <profile> add dsh-preset-deep
+
+# 桌面版用 Desktop 自带的 CLI（npm 版拒绝 desktop profile）
+"<安装目录>\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add dsh-preset-deep
 ```
 
-> 装完重启 Harness，新开会话选「梁圣模式」。在 DSH 0.2.2-alpha.2 上实测；`dsh plugin add` 会自动把这个包写进 profile 的 `dsh.profile.bundles`，不用手改。若报 workspace 错误，命令末尾加 `-w`。
+> `--profile` 不能省，漏了会报 `required option '--profile <name>' not specified`（`@deepseek-ai/dsh` 0.2.2-alpha.2 的 `lib/bin.js:117`）。装完重启 Harness，新开会话选「梁圣模式」。`dsh plugin add` 会自动把这个包写进 profile 的 `dsh.profile.bundles`，不用手改。若报 workspace 错误，命令末尾加 `-w`。
 
 > 装之前先删掉 profile 的 `cordis.patch.yml` 里手写的那段 `preset-deep`，否则同名冲突。只删整段 preset 定义；如果你按「已知限制」给 `- id: preset-deep` 加过 `inject:` 顺序栅栏，保留那一条。
 

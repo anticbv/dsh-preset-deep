@@ -122,6 +122,13 @@ check("persona 要求子代理须经用户明确要求", /明确要求/.test(pre
     check("client.js 内嵌了图标（base64 PNG）", /data:image\/png;base64,[A-Za-z0-9+/=]{100,}/.test(client));
     check("ICON_SIZE 是 px 值", /^\d+px$/.test(matchConst(client, "ICON_SIZE") || ""));
   }
+
+  // README 的 npm 安装命令：plugin 子命令自 0.2.2-alpha.2 起把 --profile 设为必填。
+  for (const name of ["README.md", "README.en.md"]) {
+    const text = fs.readFileSync(path.join(root, name), "utf8");
+    check(name + " 的安装命令带 --profile", /dsh plugin --profile <profile> add dsh-preset-deep/.test(text));
+    check(name + " 没有裸 dsh plugin add", !/^\s*dsh plugin add\b/m.test(text));
+  }
 }
 
 // 语法检查：两个半边都要能被 Node 解析。
